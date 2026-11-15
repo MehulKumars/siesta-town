@@ -11,6 +11,7 @@ import {
   evaluate,
   isLegalPlacement,
   minPlausibleMs,
+  tileMap,
 } from '../../shared/engine/index.ts';
 import type { Placements, Puzzle } from '../../shared/engine/index.ts';
 import { expiresIn, keys, ttlSeconds } from '../repo/keys.ts';
@@ -34,7 +35,17 @@ export async function getProgress(
   const raw = await redis.get(keys.progress(date, userId));
   if (!raw) return null;
   const parsed: SavedProgress = JSON.parse(raw);
-  return parsed;
+  return { ...parsed, firstTile: parsed.firstTile ?? null };
+}
+
+/** A first drop must be a tile a house can stand on; anything else is ignored rather than trusted. */
+export function cleanFirstTile(
+  puzzle: Puzzle,
+  tile: number | null | undefined
+): number | null {
+  if (tile === null || tile === undefined || !Number.isInteger(tile))
+    return null;
+  return tileMap(puzzle)[tile] === 'ground' ? tile : null;
 }
 
 export async function saveProgress(
@@ -42,10 +53,17 @@ export async function saveProgress(
   userId: string,
   puzzle: Puzzle,
   placements: Placements,
-  timeMs: number
+  timeMs: number,
+  firstTile: number | null | undefined
 ): Promise<boolean> {
   if (!isLegalPlacement(puzzle, placements)) return false;
-  const progress: SavedProgress = { placements, timeMs: Math.round(timeMs) };
+  // The first drop never changes once recorded, even if the house is moved later.
+  const earlier = await getProgress(date, userId);
+  const progress: SavedProgress = {
+    placements,
+    timeMs: Math.round(timeMs),
+    firstTile: earlier?.firstTile ?? cleanFirstTile(puzzle, firstTile),
+  };
   await redis.set(keys.progress(date, userId), JSON.stringify(progress), {
     expiration: expiresIn(ttlSeconds.progress),
   });
@@ -59,7 +77,7 @@ export async function getResult(
   const raw = await redis.get(keys.result(date, userId));
   if (!raw) return null;
   const parsed: SolveRecord = JSON.parse(raw);
-  return parsed;
+  return { ...parsed, firstTile: parsed.firstTile ?? null };
 }
 
 export type Verdict =
@@ -72,7 +90,8 @@ export type Verdict =
 export async function judgeSolve(
   puzzle: Puzzle,
   request: SubmitRequest,
-  firstSeenAt: number | null
+  firstSeenAt: number | null,
+  savedFirstTile: number | null
 ): Promise<Verdict> {
   if (!evaluate(puzzle, request.placements, noonRule).solved) {
     return { ok: false, message: 'That town is not asleep yet.' };
@@ -95,6 +114,7 @@ export async function judgeSolve(
       adjustedMs: adjustedTimeMs(timeMs, request.hints),
       moves: Math.max(0, request.moves),
       solvedAt: Date.now(),
+      firstTile: savedFirstTile ?? cleanFirstTile(puzzle, request.firstTile),
     },
   };
 }
@@ -108,18 +128,27 @@ export async function firstSeenAt(
   return Number.isFinite(value) ? value : null;
 }
 
-/** Stores the first solve only; later solves of the same town don't overwrite it. */
+/**
+ * Stores the first solve only; later solves of the same town don't overwrite it. `isNew` is true for
+ * exactly one call per player and town, so streaks and stats are counted once.
+ */
 export async function saveResult(
   date: DayKey,
   userId: string,
   record: SolveRecord
-): Promise<SolveRecord> {
+): Promise<{ record: SolveRecord; isNew: boolean }> {
   const existing = await getResult(date, userId);
-  if (existing) return existing;
+  if (existing) return { record: existing, isNew: false };
+  const claim = await redis.incrBy(keys.lock(`solve:${date}:${userId}`), 1);
+  await redis.expire(keys.lock(`solve:${date}:${userId}`), ttlSeconds.lock);
+  if (claim !== 1) {
+    // A double submit is already saving this solve: report the stored one when it lands.
+    const stored = await getResult(date, userId);
+    return { record: stored ?? record, isNew: false };
+  }
   await redis.set(keys.result(date, userId), JSON.stringify(record), {
-    nx: true,
     expiration: expiresIn(ttlSeconds.result),
   });
   await redis.del(keys.progress(date, userId));
-  return (await getResult(date, userId)) ?? record;
+  return { record, isNew: true };
 }

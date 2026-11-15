@@ -1,7 +1,10 @@
 import type {
   InitResponse,
   ProgressRequest,
+  ReportRequest,
   SettingsRequest,
+  ShareRequest,
+  ShareResponse,
   SubmitRequest,
   SubmitResponse,
 } from '../shared/api.ts';
@@ -52,6 +55,7 @@ export class RejectedError extends Error {}
 /** Retries network failures with backoff; a server rejection (4xx) is final. */
 export async function submitSolve(
   request: SubmitRequest,
+  extraHeaders: Record<string, string> = {},
   attempts = 3
 ): Promise<SubmitResponse> {
   let lastError: unknown = null;
@@ -59,7 +63,7 @@ export async function submitSolve(
     try {
       const res = await fetch('/api/submit', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...extraHeaders },
         body: JSON.stringify(request),
       });
       const body = await readJson(res);
@@ -76,6 +80,41 @@ export async function submitSolve(
   throw lastError instanceof Error
     ? lastError
     : new Error('Could not reach the server');
+}
+
+async function postJson(path: string, body: unknown): Promise<unknown> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = await readJson(res);
+  if (!res.ok) throw new Error(errorMessage(json, res.status));
+  return json;
+}
+
+function isShare(value: unknown): value is ShareResponse {
+  return (
+    isRecord(value) &&
+    value.type === 'share' &&
+    typeof value.permalink === 'string'
+  );
+}
+
+/** Posts the player's result as their comment. Only called from the "Post as u/…" button. */
+export async function shareResult(request: ShareRequest): Promise<ShareResponse> {
+  const body = await postJson('/api/share', request);
+  if (!isShare(body)) throw new Error('Reddit didn’t take the comment.');
+  return body;
+}
+
+/** Joins the subreddit. Only called from the "Join" button. */
+export async function joinSubreddit(): Promise<void> {
+  await postJson('/api/subscribe', {});
+}
+
+export async function sendReport(request: ReportRequest): Promise<void> {
+  await postJson('/api/report', request);
 }
 
 export async function sendSettings(request: SettingsRequest): Promise<void> {

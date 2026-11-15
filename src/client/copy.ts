@@ -1,6 +1,8 @@
 // Every player-facing string lives here so a human can write and edit them in one place.
 // Status: agent-drafted. A human must review and sign off every line before the feature freeze.
 // House style: short, warm, plain. No exclamation marks, no middle-dot lists, no arrows in buttons.
+// Text the app posts onto Reddit (titles, comments, shared results) is in src/shared/reddit-copy.ts.
+import type { CrowdLine } from '../shared/community.ts';
 import type { NoonRule, TimeOfDay } from '../shared/engine/types.ts';
 import type { LessonId } from '../shared/lessons.ts';
 
@@ -141,13 +143,74 @@ export const copy = {
   // Result
   asleep: (title: string) => `${title} is asleep.`,
   statTime: 'time',
+  statStreak: 'day streak',
   cleanNap: 'No hints',
   nextTown: (hours: number, minutes: number) =>
     hours > 0
       ? `Next town in ${hours} h ${minutes} min`
       : `Next town in ${minutes} min`,
   lookAtTown: 'Look at the town',
+  seeYourResult: 'See your result',
   notSavedLoggedOut: 'Log in to Reddit to keep your result and your streak.',
   notSavedYet:
     'Couldn’t save your result yet. It will try again when you’re back online.',
+  crowd: (line: CrowdLine, title: string): string => {
+    switch (line.kind) {
+      case 'alone':
+        return `You’re the first napper in ${title}.`;
+      case 'early':
+        return `You’re one of the first ${line.solvers} nappers here.`;
+      case 'sameStart':
+        return `${line.solvers} nappers so far. ${line.percent}% started where you did.`;
+      case 'count':
+        return `${line.solvers} nappers so far.`;
+    }
+  },
+  seeWhereStarted: 'See where everyone started',
+  logInToKeep: 'Log in to keep your streak',
+  postResult: 'Post my result',
+  seeYourComment: 'See your comment',
+  challenge: 'Challenge a friend',
+  challengeText: (title: string, time: string) =>
+    `I put every cat in ${title} to sleep in ${time}. Your turn?`,
+  join: (sub: string) => `Join r/${sub}`,
+  joined: (sub: string) => `You joined r/${sub}.`,
+  yesterdaysTown: 'Yesterday’s town',
+  todaysTown: 'Today’s town',
+
+  // Posting a result (always previewed word for word first)
+  sharePreviewTitle: 'Post your result',
+  sharePreviewBody: (name: string, isToday: boolean) =>
+    `This is posted as a comment from u/${name}, under ${isToday ? 'today’s' : 'that day’s'} Siesta post:`,
+  postAs: (name: string) => `Post as u/${name}`,
+  notNow: 'Not now',
+  posting: 'Posting…',
+  posted: 'Posted.',
+  postedByApp:
+    'Posted. While Siesta is new, Reddit posts it from the app’s account, with your name in it.',
+  needsPermission: 'Reddit needs your OK before Siesta can post for you.',
+
+  // Where everyone started
+  mapTitle: 'Where everyone started',
+  mapCaption: 'Darker tiles got more first houses. The ring marks yours.',
+  mapCaptionNoMine: 'Darker tiles got more first houses.',
+  back: 'Back',
+
+  // Problem reports (fixed categories live in shared/reddit-copy.ts)
+  reportProblem: 'Report a problem',
+  reportTitle: 'Report a problem',
+  reportQuestion: 'What went wrong?',
+  reportSend: 'Send to the moderators',
+  reportSent: 'Sent to the moderators. Thank you.',
+
+  // Splash extras
+  friendChallenge: (time: string) =>
+    `A friend napped this town in ${time}. Your turn.`,
+  streakSoFar: (days: number) =>
+    `Your streak: ${days} ${plural(days, 'day', 'days')}. Keep it going.`,
+  nappedWithStreak: (time: string, days: number) =>
+    days > 1 ? `Napped in ${time}. Streak: ${days} days.` : `Napped in ${time}.`,
+  oldPost: (n: number) => `This was town No. ${n}.`,
+  goToToday: 'Go to today’s town',
+  playAnyway: (n: number) => `Play No. ${n} anyway`,
 } as const;

@@ -1,4 +1,5 @@
 import { reddit, redis } from '@devvit/web/server';
+import { HUB_TITLE, POST_FALLBACK } from '../../shared/reddit-copy.ts';
 import { keys } from '../repo/keys.ts';
 
 /**
@@ -7,9 +8,10 @@ import { keys } from '../repo/keys.ts';
  */
 export async function createHubPost() {
   const post = await reddit.submitCustomPost({
-    title: 'Siesta: a new town to put to sleep every day',
+    title: HUB_TITLE,
     entry: 'default',
     postData: { kind: 'hub' },
+    textFallback: { text: POST_FALLBACK },
   });
   await redis.set(keys.hubPostId(), post.id);
   try {

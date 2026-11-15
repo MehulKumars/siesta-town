@@ -702,3 +702,186 @@ button:focus-visible {
     height: 40px;
   }
 }
+
+/* ---------- Phase 2: the result card, sharing, where everyone started ---------- */
+
+.sheet-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: var(--ink-soft);
+}
+.sheet-close + h2 {
+  padding-right: 44px;
+}
+.crowd {
+  margin-top: 10px;
+}
+.sheet .crowd p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15.5px;
+}
+.link-btn {
+  min-height: 44px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 650;
+  font-size: 15px;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--pink);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+.crowd .link-btn {
+  margin-top: -4px;
+}
+.actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.sheet .actions .primary,
+.sheet .actions .secondary {
+  margin-top: 0;
+}
+.primary:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.sheet p.next {
+  margin: 2px 0 0;
+  font-size: 14px;
+}
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 14px;
+  margin-top: 4px;
+}
+.footer-links .link-btn {
+  padding: 0;
+}
+.sheet:focus {
+  outline: none;
+}
+.footer-links .link-btn {
+  font-size: 14px;
+}
+.share-preview {
+  margin: 12px 0 14px;
+  padding: 12px 14px;
+  background: var(--sky);
+  border-left: 4px solid var(--ink);
+  border-radius: 6px 10px 10px 6px;
+  font-size: 15.5px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.start-map {
+  display: block;
+  width: min(100%, 36dvh, 280px);
+  height: auto;
+  aspect-ratio: 1;
+  margin: 12px auto 2px;
+}
+.start-map .heat {
+  fill: var(--pink);
+}
+.start-map .mine {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 7;
+  stroke-dasharray: 14 9;
+}
+.start-map .cat .ring,
+.start-map .flower .ring {
+  display: none;
+}
+.tray .see-result {
+  width: auto;
+  min-width: 220px;
+  padding: 0 24px;
+  min-height: 52px;
+  background: var(--white);
+}
+.report-btn {
+  display: flex;
+  margin: 6px auto 0;
+  color: var(--ink-soft);
+}
+
+/* Short screens: the result card stays compact so the sleeping town still shows above it */
+@media (max-height: 640px) {
+  .sheet {
+    padding-top: 16px;
+  }
+  .sheet h2 {
+    font-size: 20px;
+  }
+  .stats {
+    margin: 8px 0 0;
+    gap: 18px;
+  }
+  .stats strong {
+    font-size: 24px;
+  }
+  .crowd {
+    margin-top: 6px;
+  }
+  .actions {
+    margin-top: 8px;
+  }
+  .sheet .actions .primary {
+    min-height: 48px;
+  }
+  .sheet .actions .secondary {
+    min-height: 44px;
+  }
+}
+
+/* The postcard: while the result card is up, the controls step aside and the board fits above the card */
+.app[data-sheet='result'] .coach,
+.app[data-sheet='result'] .toggle,
+.app[data-sheet='result'] .status,
+.app[data-sheet='result'] .tray-row {
+  display: none;
+}
+.app[data-sheet='result'] {
+  padding-bottom: calc(var(--sheet-h, 0px) + 10px);
+}
+.app.reflow .board-wrap {
+  transition: height 0.35s ease-out;
+}
+@media (max-height: 700px) and (orientation: portrait) {
+  .app[data-sheet='result'] header {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app.reflow .board-wrap {
+    transition: none;
+  }
+}
+/* Landscape: the card sits in the right-hand column and the board keeps its full size on the left */
+@media (orientation: landscape) and (max-height: 560px) {
+  .app[data-sheet='result'] {
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+  .app[data-sheet='result'] header {
+    visibility: hidden;
+  }
+  /* The app is centred at up to 900 px wide; the card starts just right of the board inside it. */
+  .sheet {
+    left: calc(max(0px, (100vw - 900px) / 2) + var(--board, 300px) + 28px);
+    right: calc(max(0px, (100vw - 900px) / 2) + 12px);
+    margin: 0;
+    width: auto;
+    max-width: none;
+    padding-top: 14px;
+  }
+}

@@ -71,6 +71,12 @@ export function msUntilNextDay(now: Date): number {
   return next - now.getTime();
 }
 
+/** A solve time as the result card shows it: "1:42", "12:05". Never "0:00". */
+export function formatClock(ms: number): string {
+  const s = Math.max(1, Math.round(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
 /** "Monday 14 December" */
 export function longDate(key: DayKey): string {
   const date = dateOfDayKey(key);

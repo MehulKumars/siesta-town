@@ -1,6 +1,14 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
   "name": "siesta-town",
+  "permissions": {
+    "redis": true,
+    "reddit": {
+      "enable": true,
+      "scope": "user"
+    },
+    "journeys": true
+  },
   "post": {
     "dir": "dist/client",
     "entrypoints": {
@@ -25,12 +33,28 @@
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/create-hub"
+      },
+      {
+        "label": "Post today's town now",
+        "description": "Makes today's Siesta post if it is missing (it normally appears by itself after midnight UTC)",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/post-today"
       }
     ]
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install",
-    "onAppUpgrade": "/internal/triggers/on-app-upgrade"
+    "onAppUpgrade": "/internal/triggers/on-app-upgrade",
+    "onPostDelete": "/internal/triggers/on-post-delete"
+  },
+  "scheduler": {
+    "tasks": {
+      "ensure-daily-post": {
+        "endpoint": "/internal/scheduler/ensure-daily-post",
+        "cron": "1,16,31,46 * * * *"
+      }
+    }
   },
   "scripts": {
     "dev": "vite build --watch",

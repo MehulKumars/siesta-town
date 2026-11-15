@@ -58,6 +58,26 @@ Phase 0: prove the fun, and set up (Sun Nov 15 – Tue Nov 17)
 - [ ] **Human:** try the lessons on a phone inside the Reddit app (drag inside the app, especially iOS)
 - [ ] Backlog: keyboard play (arrow keys + Enter) for accessibility; human-drawn art; real sounds
 
+## Phase 2 plan (started 2026-11-15, ahead of the Nov 22 schedule)
+1. Pure, tested logic in `src/shared`: streak counting from bitfield chunks, leaderboard score, time buckets,
+   recap and community-line data. Reddit-facing text (post titles, sticky comment, share comment, report modmail)
+   in `src/shared/reddit-copy.ts` so the server can use it; a human signs it off with `copy.ts`.
+2. Server: keys + TTLs for `post:{d}`, `postdate:{id}`, `sticky:{d}`, `streaks:{u}:{yyyy}`, `lb:{d}`, `first:{d}`,
+   `stats:{d}`, `shared:{d}:{u}`, `rl:{action}:{u}`; services for daily posts (idempotent, with a lock), streaks,
+   community stats, share, report (to modmail via `createModNotification`), subscribe.
+3. Routes: `/api/init` and `/api/submit` return streak + community summary (only after solving); `/api/share`,
+   `/api/subscribe`, `/api/report`; scheduler `/internal/scheduler/ensure-daily-post` (hourly), menu "Post today's
+   town now", `onPostDelete` cleanup, install/upgrade also make today's post.
+4. Client: result card (time, streak, one community line, where-everyone-started overlay, Post my result with an
+   exact-text preview, Challenge a friend via the share sheet, footer: next town, Join, Yesterday's town); splash
+   streak, old-post state with "Go to today's town", challenge line from share data; Report a problem in the help sheet.
+5. Journeys wrapper that no-ops until allowlisted (if `@devvit/analytics` fits the bundle budget).
+6. Check: unit tests, Playwright states and sizes against the mocked API, then a Reddit playtest where the scheduler
+   makes a real daily post with its sticky comment.
+Risks: `runAs: 'USER'` posts from the app account for non-owners until the app is approved (the share text names
+the player, and the server rewrites it if Reddit posted it as the app); flair needs mod rights (cut-list item 5,
+left for later); the scheduler's cron timezone is undocumented (the job is hourly and idempotent, so it doesn't matter).
+
 ## Phase 1 plan (started 2026-11-15)
 1. Engine in `src/shared/engine` (TypeScript, no enums, explicit `.ts` imports so `node --test` can run it): types,
    rules, rng, solver, generator, difficulty, scoring, town validation, bank checks. Tests next to each module.

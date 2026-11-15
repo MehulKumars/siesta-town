@@ -15,14 +15,30 @@ import type {
   Tile,
   TimeOfDay,
 } from '../shared/engine/index.ts';
+import {
+  canRunAsUser,
+  navigateTo,
+  navigateToPost,
+  showForm,
+  showLoginPrompt,
+  showShareSheet,
+} from '@devvit/web/client';
+import type { T3 } from '@devvit/web/shared';
 import type {
   InitResponse,
   PublicTown,
   Settings,
   SolveRecord,
 } from '../shared/api.ts';
-import { longDate } from '../shared/dates.ts';
+import { MIN_CROWD_FOR_MAP } from '../shared/community.ts';
+import { formatClock, longDate } from '../shared/dates.ts';
 import { LESSONS } from '../shared/lessons.ts';
+import {
+  REPORT_CATEGORIES,
+  isReportCategory,
+  shareText,
+} from '../shared/reddit-copy.ts';
+import type { ShareFacts } from '../shared/reddit-copy.ts';
 import type { Lesson } from '../shared/lessons.ts';
 import {
   CELL,
@@ -33,6 +49,7 @@ import {
   drawGround,
   drawHouse,
   drawShadowDiagram,
+  drawTownPreview,
   drawWell,
   flowerIconSvg,
   houseSvg,
@@ -43,10 +60,14 @@ import { copy } from './copy.ts';
 import {
   RejectedError,
   fetchInit,
+  joinSubreddit,
   sendProgress,
+  sendReport,
   sendSettings,
+  shareResult,
   submitSolve,
 } from './net.ts';
+import * as journey from './journey.ts';
 import { isMuted, setMuted, sound, unlockAudio } from './sound.ts';
 
 /** Room around the board for the sun and its path. */
@@ -101,8 +122,16 @@ type State = {
   lastActionAt: number;
   idle: 'none' | 'start' | 'tip';
   justPlaced: number;
-  parkedTown: { placements: Placements; playedMs: number } | null;
+  parkedTown: {
+    placements: Placements;
+    playedMs: number;
+    firstTile: number | null;
+  } | null;
   sunAngle: number;
+  /** Where the first house of today's town landed: feeds "where everyone started". */
+  firstTile: number | null;
+  /** True while a Reddit action (post, join, report) is in flight, so double taps do nothing. */
+  busy: boolean;
 };
 
 const state: State = {
@@ -128,6 +157,8 @@ const state: State = {
   justPlaced: -1,
   parkedTown: null,
   sunAngle: 0,
+  firstTile: null,
+  busy: false,
 };
 
 function byId<T extends Element>(
@@ -441,6 +472,18 @@ function renderToggle(): void {
 function renderTray(): void {
   const tray = byId('tray', HTMLDivElement);
   tray.replaceChildren();
+  byId('reset-btn', HTMLButtonElement).hidden = state.solved;
+  // A solved town has nothing left to place: the tray becomes the way back to the result card.
+  if (state.solved && state.mode.kind === 'town' && !state.solving) {
+    const record = state.init?.result;
+    if (record)
+      tray.append(
+        button(copy.seeYourResult, 'secondary see-result', () =>
+          showResult(record, null)
+        )
+      );
+    return;
+  }
   puzzle().heights.forEach((h, i) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -457,7 +500,6 @@ function renderTray(): void {
       b.classList.add('selected');
     tray.appendChild(b);
   });
-  byId('reset-btn', HTMLButtonElement).hidden = state.solved;
 }
 
 function renderStatus(result: Evaluation): void {
@@ -709,6 +751,8 @@ window.setInterval(() => {
 function setTime(t: TimeOfDay): void {
   if (state.solving || state.time === t) return;
   noteAction();
+  journey.startJourney();
+  journey.interaction('time_toggle', t);
   state.time = t;
   if (t === 'noon' && !state.sawNoon) state.sawNoon = true;
   renderToggle();
@@ -728,7 +772,11 @@ async function saveProgressNow(): Promise<void> {
   const town = state.town;
   if (!town || state.mode.kind !== 'town' || state.solved || state.solving)
     return;
-  const record = { placements: state.placements, timeMs: Math.round(playMs()) };
+  const record = {
+    placements: state.placements,
+    timeMs: Math.round(playMs()),
+    firstTile: state.firstTile,
+  };
   if (!state.init?.user.loggedIn) {
     local.set(`progress:${town.date}`, JSON.stringify(record));
     return;
@@ -744,7 +792,11 @@ function placeHouse(i: number, cell: number): void {
   const from = state.placements[i];
   state.placements[i] = cell;
   state.moves++;
+  journey.startJourney();
+  if (cell === IN_TRAY && from !== IN_TRAY) journey.interaction('lift');
   if (cell !== IN_TRAY) {
+    if (state.mode.kind === 'town' && state.firstTile === null)
+      state.firstTile = cell;
     state.justPlaced = i;
     sound.drop();
   } else if (from !== IN_TRAY) {
@@ -755,6 +807,11 @@ function placeHouse(i: number, cell: number): void {
   renderHouses();
   renderShadows();
   const result = evaluateAndRender();
+  if (state.mode.kind === 'town') {
+    const goals = puzzle().cats.length + puzzle().flowers.length;
+    if (goals > 0)
+      journey.progress((result.asleepCount + result.litCount) / goals);
+  }
   if (result.solved) void runSiesta(result);
   else queueProgressSave();
 }
@@ -1037,7 +1094,8 @@ async function runSiesta(result: Evaluation): Promise<void> {
     timeMs,
     hints: 0,
     moves: state.moves,
-  });
+    firstTile: state.firstTile,
+  }, journey.journeyHeaders());
   await playSiesta(result);
 
   let record: SolveRecord = {
@@ -1047,6 +1105,7 @@ async function runSiesta(result: Evaluation): Promise<void> {
     adjustedMs: timeMs,
     moves: state.moves,
     solvedAt: Date.now(),
+    firstTile: state.firstTile,
   };
   let note: string | null = state.init?.user.loggedIn
     ? null
@@ -1054,6 +1113,10 @@ async function runSiesta(result: Evaluation): Promise<void> {
   try {
     const response = await submission;
     record = response.result;
+    if (state.init) {
+      state.init.community = response.community;
+      if (response.saved) state.init.streak = response.streak;
+    }
   } catch (error) {
     if (error instanceof RejectedError) {
       // The server replays every solve and disagreed. Let the player keep going.
@@ -1076,11 +1139,6 @@ async function runSiesta(result: Evaluation): Promise<void> {
   showResult(record, note);
 }
 
-function formatTime(ms: number): string {
-  const s = Math.max(1, Math.round(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
-
 function nextTownText(): string {
   const left = Math.max(
     0,
@@ -1093,7 +1151,7 @@ function nextTownText(): string {
 function button(
   text: string,
   className: string,
-  onClick: () => void
+  onClick: (event: MouseEvent) => void
 ): HTMLButtonElement {
   const b = document.createElement('button');
   b.type = 'button';
@@ -1103,30 +1161,286 @@ function button(
   return b;
 }
 
+function isPostId(value: string | null | undefined): value is T3 {
+  return typeof value === 'string' && value.startsWith('t3_');
+}
+
+function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className: string,
+  text = ''
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text) node.textContent = text;
+  return node;
+}
+
+/** A quiet close button for the top corner of a sheet. */
+function closeButton(label: string): HTMLButtonElement {
+  const b = button('', 'icon-btn sheet-close', closeSheets);
+  b.setAttribute('aria-label', label);
+  b.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  return b;
+}
+
+function stat(value: string, label: string): HTMLDivElement {
+  const div = el('div', '');
+  div.append(el('strong', '', value), document.createTextNode(label));
+  return div;
+}
+
+/** What a shared comment says, computed exactly as the server will (the preview must match word for word). */
+function shareFacts(record: SolveRecord): ShareFacts | null {
+  const init = state.init;
+  if (!init) return null;
+  return {
+    number: init.town.number,
+    title: init.town.title,
+    cats: init.town.puzzle.cats.length,
+    timeMs: record.timeMs,
+    hints: record.hints,
+    streak: init.isToday ? init.streak : 0,
+  };
+}
+
 function showResult(record: SolveRecord, note: string | null): void {
   const town = state.town;
-  if (!town) return;
+  const init = state.init;
+  if (!town || !init) return;
   const sheet = byId('result-sheet', HTMLDivElement);
   sheet.replaceChildren();
-  const h2 = document.createElement('h2');
-  h2.textContent = copy.asleep(town.title);
-  const stats = document.createElement('div');
-  stats.className = 'stats';
-  stats.innerHTML = `<div><strong>${formatTime(record.timeMs)}</strong>${copy.statTime}</div>${
-    record.hints === 0 ? `<div class="badge">${copy.cleanNap}</div>` : ''
-  }`;
-  const next = document.createElement('p');
-  next.className = 'next';
-  next.textContent = nextTownText();
-  sheet.append(h2, stats, next);
-  if (note) {
-    const p = document.createElement('p');
-    p.className = 'note';
-    p.textContent = note;
-    sheet.append(p);
+
+  const stats = el('div', 'stats');
+  stats.append(stat(formatClock(record.timeMs), copy.statTime));
+  if (init.streak > 0)
+    stats.append(stat(String(init.streak), copy.statStreak));
+  if (record.hints === 0) stats.append(el('div', 'badge', copy.cleanNap));
+  sheet.append(
+    closeButton(copy.lookAtTown),
+    el('h2', '', copy.asleep(town.title)),
+    el('p', 'next', nextTownText()),
+    stats
+  );
+
+  const community = init.community;
+  if (community) {
+    const crowd = el('div', 'crowd');
+    crowd.append(el('p', '', copy.crowd(community.line, town.title)));
+    if (community.solvers >= MIN_CROWD_FOR_MAP)
+      crowd.append(
+        button(copy.seeWhereStarted, 'link-btn', () =>
+          showStartMap(record)
+        )
+      );
+    sheet.append(crowd);
   }
-  sheet.append(button(copy.lookAtTown, 'primary', closeSheets));
+  if (note) sheet.append(el('p', 'note', note));
+
+  const actions = el('div', 'actions');
+  if (!init.user.loggedIn) {
+    actions.append(button(copy.logInToKeep, 'primary', () => showLoginPrompt()));
+  } else if (init.sharedPermalink) {
+    const permalink = init.sharedPermalink;
+    actions.append(
+      button(copy.seeYourComment, 'primary', () => navigateTo(permalink))
+    );
+  } else {
+    actions.append(
+      button(copy.postResult, 'primary', () => {
+        journey.interaction('share_clicked');
+        showSharePreview(record);
+      })
+    );
+  }
+  actions.append(
+    button(copy.challenge, 'secondary', () => void challengeFriend(record))
+  );
+  sheet.append(actions);
+
+  const links = el('div', 'footer-links');
+  const other = init.isToday ? init.posts.yesterday : (init.posts.today ?? init.posts.hub);
+  if (isPostId(other))
+    links.append(
+      button(init.isToday ? copy.yesterdaysTown : copy.todaysTown, 'link-btn', () =>
+        navigateToPost(other)
+      )
+    );
+  if (init.user.loggedIn && !init.joined)
+    links.append(
+      button(copy.join(init.subredditName), 'link-btn', (e) => void join(e))
+    );
+  if (links.childElementCount > 0) sheet.append(links);
   openSheet(sheet);
+}
+
+/** The exact comment, then one clear button. Nothing is posted without this press. */
+function showSharePreview(record: SolveRecord): void {
+  const init = state.init;
+  const facts = shareFacts(record);
+  const name = init?.user.username;
+  if (!init || !facts || !name) return;
+  const sheet = byId('result-sheet', HTMLDivElement);
+  sheet.replaceChildren();
+  const quote = el('blockquote', 'share-preview', shareText(facts));
+  const post = button(copy.postAs(name), 'primary', (e) => void postResult(e, record, post));
+  sheet.append(
+    el('h2', '', copy.sharePreviewTitle),
+    el('p', '', copy.sharePreviewBody(name, init.isToday)),
+    quote,
+    post,
+    button(copy.notNow, 'secondary', () => showResult(record, null))
+  );
+  openSheet(sheet);
+}
+
+async function postResult(
+  event: MouseEvent,
+  record: SolveRecord,
+  trigger: HTMLButtonElement
+): Promise<void> {
+  const init = state.init;
+  if (!init || state.busy) return;
+  state.busy = true;
+  try {
+    // Reddit may ask the player to allow posting on their behalf; this must come from the tap itself.
+    const allowed = await canRunAsUser(event).catch(() => true);
+    if (!allowed) {
+      toast(copy.needsPermission);
+      return;
+    }
+    trigger.disabled = true;
+    trigger.textContent = copy.posting;
+    const response = await shareResult({ date: init.town.date });
+    init.sharedPermalink = response.permalink;
+    showResult(record, response.postedByApp ? copy.postedByApp : copy.posted);
+  } catch (error) {
+    trigger.disabled = false;
+    trigger.textContent = copy.postAs(init.user.username ?? '');
+    toast(error instanceof Error ? error.message : copy.loadFailed);
+  } finally {
+    state.busy = false;
+  }
+}
+
+async function challengeFriend(record: SolveRecord): Promise<void> {
+  const init = state.init;
+  if (!init) return;
+  // Share data is untrusted on the other end: only the date and time travel, never a name.
+  journey.interaction('challenge_clicked');
+  const data = JSON.stringify({ d: init.town.date, t: Math.round(record.timeMs) });
+  const post = init.posts.thisTown;
+  try {
+    await showShareSheet({
+      title: copy.gameName,
+      text: copy.challengeText(init.town.title, formatClock(record.timeMs)),
+      data,
+      post: isPostId(post) ? post : undefined,
+    });
+  } catch (error) {
+    console.warn('Share sheet failed', error);
+  }
+}
+
+async function join(event: MouseEvent): Promise<void> {
+  const init = state.init;
+  if (!init || state.busy) return;
+  state.busy = true;
+  try {
+    const allowed = await canRunAsUser(event).catch(() => true);
+    if (!allowed) {
+      toast(copy.needsPermission);
+      return;
+    }
+    journey.interaction('subscribe_clicked');
+    await joinSubreddit();
+    init.joined = true;
+    if (init.result) showResult(init.result, copy.joined(init.subredditName));
+  } catch (error) {
+    toast(error instanceof Error ? error.message : copy.loadFailed);
+  } finally {
+    state.busy = false;
+  }
+}
+
+/** A small copy of the town with every first drop shaded in: shown only after solving, so no spoilers. */
+function showStartMap(record: SolveRecord): void {
+  const town = state.town;
+  const community = state.init?.community;
+  if (!town || !community) return;
+  const sheet = byId('result-sheet', HTMLDivElement);
+  sheet.replaceChildren();
+  const pic = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  pic.classList.add('start-map');
+  pic.setAttribute('role', 'img');
+  pic.setAttribute('aria-label', copy.mapTitle);
+  drawTownPreview(pic, town.puzzle);
+  const size = town.puzzle.size;
+  const most = Math.max(1, ...community.firsts);
+  const frame = pic.querySelector('.frame');
+  community.firsts.forEach((count, cell) => {
+    if (count <= 0) return;
+    const { x, y } = cellOrigin(size, cell);
+    const heat = svgEl('rect', {
+      class: 'heat',
+      x: x + 4,
+      y: y + 4,
+      width: CELL - 8,
+      height: CELL - 8,
+      rx: 10,
+      'fill-opacity': (0.18 + 0.62 * (count / most)).toFixed(2),
+    });
+    pic.insertBefore(heat, frame);
+  });
+  const mine = record.firstTile;
+  if (mine !== null) {
+    const { x, y } = cellOrigin(size, mine);
+    svgEl(
+      'circle',
+      { class: 'mine', cx: x + CELL / 2, cy: y + CELL / 2, r: CELL * 0.4 },
+      pic
+    );
+  }
+  sheet.append(
+    el('h2', '', copy.mapTitle),
+    pic,
+    el('p', 'note', mine === null ? copy.mapCaptionNoMine : copy.mapCaption),
+    button(copy.back, 'primary', () => showResult(record, null))
+  );
+  openSheet(sheet);
+}
+
+/** Opens Reddit's own form with fixed choices; the report goes to the subreddit's modmail. */
+async function reportProblem(): Promise<void> {
+  const init = state.init;
+  if (!init || state.busy) return;
+  state.busy = true;
+  try {
+    const answer = await showForm({
+      title: copy.reportTitle,
+      acceptLabel: copy.reportSend,
+      fields: [
+        {
+          type: 'select',
+          name: 'category',
+          label: copy.reportQuestion,
+          required: true,
+          options: REPORT_CATEGORIES.map((c) => ({ label: c.label, value: c.value })),
+        },
+      ],
+    });
+    if (answer.action !== 'SUBMITTED') return;
+    const category = answer.values.category?.[0];
+    if (!isReportCategory(category)) return;
+    await sendReport({ category, date: init.town.date });
+    closeSheets();
+    toast(copy.reportSent);
+  } catch (error) {
+    toast(error instanceof Error ? error.message : copy.loadFailed);
+  } finally {
+    state.busy = false;
+  }
 }
 
 function showLessonDone(index: number): void {
@@ -1153,11 +1467,42 @@ function showLessonDone(index: number): void {
 }
 
 // ---------- sheets ----------
+/**
+ * The result card turns the screen into a postcard: the play controls step aside and the sleeping town
+ * shrinks into the space above the card (or beside it, in landscape), so the reward stays in view.
+ */
+function setPostcard(on: boolean): void {
+  const sheet = byId('result-sheet', HTMLDivElement);
+  const was = app.dataset.sheet === 'result';
+  if (on) {
+    app.dataset.sheet = 'result';
+    document.documentElement.style.setProperty(
+      '--sheet-h',
+      `${Math.ceil(sheet.getBoundingClientRect().height)}px`
+    );
+  } else {
+    delete app.dataset.sheet;
+  }
+  if (was !== on) {
+    app.classList.add('reflow');
+    window.setTimeout(() => app.classList.remove('reflow'), 400);
+  }
+  if (state.town) fitBoard();
+}
+
 function openSheet(sheet: HTMLElement): void {
-  if (sheet.id !== 'result-sheet')
-    byId('scrim', HTMLDivElement).classList.add('open');
+  const isResult = sheet.id === 'result-sheet';
+  if (!isResult) byId('scrim', HTMLDivElement).classList.add('open');
   sheet.classList.add('open');
-  const first = sheet.querySelector('button');
+  if (isResult) {
+    setPostcard(state.mode.kind === 'town');
+    // Screen readers land on the card itself; no focus ring jumps onto a button by surprise.
+    sheet.tabIndex = -1;
+    sheet.focus({ preventScroll: true });
+    return;
+  }
+  const first =
+    sheet.querySelector('button.primary') ?? sheet.querySelector('button');
   if (first instanceof HTMLButtonElement) first.focus({ preventScroll: true });
 }
 function closeSheets(): void {
@@ -1165,6 +1510,7 @@ function closeSheets(): void {
     .querySelectorAll('.sheet.open')
     .forEach((s) => s.classList.remove('open'));
   byId('scrim', HTMLDivElement).classList.remove('open');
+  if (app.dataset.sheet) setPostcard(false);
   state.lastActionAt = Date.now();
 }
 byId('help-btn', HTMLButtonElement).addEventListener('click', () => {
@@ -1177,6 +1523,10 @@ byId('help-replay', HTMLButtonElement).addEventListener('click', () => {
   closeSheets();
   startLessons();
 });
+byId('help-report', HTMLButtonElement).addEventListener(
+  'click',
+  () => void reportProblem()
+);
 byId('scrim', HTMLDivElement).addEventListener('click', closeSheets);
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeSheets();
@@ -1212,6 +1562,7 @@ function buildHelp(): void {
     copy.helpHouses(noonRule());
   byId('help-close', HTMLButtonElement).textContent = copy.helpBack;
   byId('help-replay', HTMLButtonElement).textContent = copy.helpReplay;
+  byId('help-report', HTMLButtonElement).textContent = copy.reportProblem;
 }
 
 function renderMute(): void {
@@ -1274,6 +1625,7 @@ function startLessons(): void {
     state.parkedTown = {
       placements: [...state.placements],
       playedMs: state.playedMs,
+      firstTile: state.firstTile,
     };
     void saveProgressNow();
   }
@@ -1311,6 +1663,7 @@ function startLesson(index: number): void {
 }
 
 function finishLessons(): void {
+  journey.interaction('tutorial_done');
   saveSettings({ tutorialDone: true });
   enterTown();
 }
@@ -1323,23 +1676,31 @@ function enterTown(): void {
   const town = init.town;
   let placements = town.puzzle.heights.map(() => IN_TRAY);
   let playedMs = 0;
+  let firstTile: number | null = null;
   if (init.result) {
     placements = [...init.result.placements];
+    firstTile = init.result.firstTile;
   } else if (state.parkedTown) {
     placements = state.parkedTown.placements;
     playedMs = state.parkedTown.playedMs;
+    firstTile = state.parkedTown.firstTile;
   } else if (init.progress) {
     placements = [...init.progress.placements];
     playedMs = init.progress.timeMs;
+    firstTile = init.progress.firstTile;
   } else if (!init.user.loggedIn) {
     const saved = local.get(`progress:${town.date}`);
     if (saved) {
       try {
-        const parsed: { placements: Placements; timeMs: number } =
-          JSON.parse(saved);
+        const parsed: {
+          placements: Placements;
+          timeMs: number;
+          firstTile?: number | null;
+        } = JSON.parse(saved);
         if (parsed.placements.length === placements.length) {
           placements = parsed.placements;
           playedMs = parsed.timeMs;
+          firstTile = parsed.firstTile ?? null;
         }
       } catch {
         // ignore a corrupt local save
@@ -1347,6 +1708,7 @@ function enterTown(): void {
     }
   }
   state.parkedTown = null;
+  state.firstTile = firstTile;
   state.playedMs = playedMs;
   state.visibleFrom = null;
   setHeader(
@@ -1413,6 +1775,7 @@ async function start(): Promise<void> {
     !state.settings.tutorialDone && !init.result && !init.progress;
   if (firstTime) startLesson(0);
   else enterTown();
+  journey.appReady();
 }
 
 void start();
