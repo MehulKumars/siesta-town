@@ -17,13 +17,18 @@ Phase 0: prove the fun, and set up (Sun Nov 15 – Tue Nov 17)
   - Verified with Playwright at 360×640, 390×844 and 1280×800: no page scroll, tray on screen, slots ≥ 44 px,
     no console errors, lessons and a Saturday town solved by dragging.
 
+- Devvit CLI logged in (u/Lordlitachi); developer account set up; app `siesta-town` registered.
+- First playtest of the untouched template works: https://www.reddit.com/r/siesta_town_dev/?playtest=siesta-town
+  (dev subreddit r/siesta_town_dev created by the CLI; version v0.0.1.1). The broken image in the template post is the
+  removed Snoo placeholder; the real splash replaces it in Phase 1.
+
 ## Next
-- [ ] **Human:** `npm run login` in this folder (opens the browser to authorise the Devvit CLI)
 - [ ] **Human:** 5 silent playtests of the prototype on phones → paste the log into prompts/01 "Phase 0b"
-- [ ] **Human:** create the dev subreddit (private) and the demo subreddit (public, under 200 members)
+- [ ] **Human:** create the demo subreddit (public, under 200 members) when the game name is settled
 - [ ] **Human:** start `docs/references/` (5–10 images); try hatched shade on paper or in Figma
-- [ ] Agent, after login: first `npm run dev` playtest of the untouched template to prove the pipeline
-- [ ] Agent, after GO: Phase 1 (engine in TypeScript, bank, splash → game, /api/init, /api/submit, hub post)
+- [ ] Agent: Phase 1 (engine in TypeScript, bank, splash → game, /api/init, /api/submit, hub post); the noon rule stays
+      a parameter until the playtests decide
+- [ ] Agent: README.md for the app (the CLI warns it's missing; required by the Devvit Rules and the hackathon)
 
 ## Questions to send (not blocking; record the date sent and the answer)
 - [ ] Devvit team: Journeys allowlisting and journey-map approval for our app
