@@ -49,6 +49,15 @@ Phase 0: prove the fun, and set up (Sun Nov 15 – Tue Nov 17)
       drag works inside the Reddit app and that a solve shows the result card. Delete the old template counter post.
 - [ ] Snoovatar-in-webview check (needs a real Reddit session)
 
+## UX pass (2026-11-15)
+- [x] Interactive tutorial (3 lessons, drag hint, Noon beckon, skip, replay from help), coach line, idle help,
+      problem rings, settle animation, sun arc, visual How to play, landscape + short/tall layouts, splash polish
+- [x] Settings in Redis (/api/settings); 22 unit tests; Playwright UX suite across 8 sizes, no problems
+- [x] Screenshots in docs/screens/2026-11-15-ux/
+- [ ] **Human:** pick the font (docs/screens/2026-11-15-ux/font-options; Shantell Sans is bundled provisionally)
+- [ ] **Human:** try the lessons on a phone inside the Reddit app (drag inside the app, especially iOS)
+- [ ] Backlog: keyboard play (arrow keys + Enter) for accessibility; human-drawn art; real sounds
+
 ## Phase 1 plan (started 2026-11-15)
 1. Engine in `src/shared/engine` (TypeScript, no enums, explicit `.ts` imports so `node --test` can run it): types,
    rules, rng, solver, generator, difficulty, scoring, town validation, bank checks. Tests next to each module.

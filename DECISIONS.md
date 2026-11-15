@@ -43,3 +43,15 @@ Format: `YYYY-MM-DD · decision · why · alternatives considered · who`
 - 2026-11-15 · Palette changed from sand + terracotta to whitewash, blue ink, sun yellow and pink · frontend-design lists cream + serif + terracotta as the #1 AI-design cliché · keep v1 palette · agent
 - 2026-11-15 · No middle-dot meta strings or "→" in UI copy · both are listed AI-design tells · — · agent
 - 2026-11-15 · Prototype: selecting a time fades the cats that don't nap then; tapping a cat says when it naps · the nap badges alone were cryptic in screenshots · text labels on every cat · agent
+
+### Phase 1 build and UX pass, 2026-11-15
+- 2026-11-15 · Client written in plain TypeScript, no React · the prototype's imperative drag code ports straight over; splash ~8 KB gz, game ~15 KB gz · React from the template · agent
+- 2026-11-15 · Bank starts 2026-11-15 (not 11-17) · the dev subreddit's day No. 1 is today · — · agent
+- 2026-11-15 · onAppUpgrade also ensures the hub post exists · existing installs get the pinned post without reinstalling · install only · agent
+- 2026-11-15 · First-time players get three interactive lessons (skippable, replayable from help); "tutorial done" and mute live in Redis (`user:{id}`, rolling 30-day TTL) · learn by doing; localStorage is wiped on app updates · text tutorial; localStorage · agent
+- 2026-11-15 · A coach line under the title always says what to do next; once every house is placed it names the failing time/cat/flower · players otherwise can't tell why a full board isn't solved · status icons only · agent
+- 2026-11-15 · Problem rings only at the selected time · ringing every problem at once was noisy, and this teaches switching times · ring everything · agent
+- 2026-11-15 · How to play is three shadow diagrams plus three one-line rules · visual beats a wall of text · text sheet · agent
+- 2026-11-15 · The sun moves along a dotted arc around the board (east, south, west) · shows where the sun is and why shadows point the other way · straight jump · agent
+- 2026-11-15 · Two-column layout for landscape phones and short windows; tuned spacing for short and tall portrait screens · Reddit's expanded view can be any shape · one layout · agent
+- 2026-11-15 · Provisional font: Shantell Sans (OFL), bundled from @fontsource (latin 400/700/800) · most distinctive and hand-made of three candidates (Shantell Sans, Young Serif headings, Baloo 2); comparison screenshots in docs/screens/2026-11-15-ux/font-options · **awaiting human sign-off** · agent

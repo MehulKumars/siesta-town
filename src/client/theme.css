@@ -1,3 +1,8 @@
+/* Shantell Sans by Shantell Martin and Arrow Type, SIL Open Font License 1.1 (see docs/LICENSES.md). Provisional pick, awaiting human sign-off. */
+@import '@fontsource/shantell-sans/latin-400.css';
+@import '@fontsource/shantell-sans/latin-700.css';
+@import '@fontsource/shantell-sans/latin-800.css';
+
 /* Design tokens. Candidate palette from docs/04-GAME-SPEC.md A10 (whitewash, blue ink, sun yellow, pink). */
 :root {
   --sky: #e9eff6;
@@ -11,7 +16,8 @@
   --water: #9cc6ea;
   --ok: #1f7a4d;
   --radius: 14px;
-  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font:
+    'Shantell Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 * {
