@@ -38,6 +38,17 @@ Phase 0: prove the fun, and set up (Sun Nov 15 – Tue Nov 17)
       user-content attribution rule, or does each town need a comment posted as its author?
 - Snoovatars in the webview: the agent will test this itself in Phase 1 (no need to ask).
 
+## Phase 1 status (2026-11-15)
+- [x] Engine + 17 tests; dates + 5 tests; bank of 412 towns (2026-11-15 → 2027-12-31) + 3 bank tests
+- [x] Server: /api/init, /api/progress, /api/submit; hub post created on install/upgrade and from the mod menu
+- [x] Client: inline splash (~8 KB gz) and game (~12 KB gz), plain TS; verified with Playwright against a mocked API
+      at 360×640, 390×844, 1280×800 (no scroll, drag solve works, one submit per solve, splash draws in ~50 ms)
+- [x] README.md draft
+- [x] Playtest on Reddit: v0.0.1.28 uploaded to r/siesta_town_dev, no server errors in the log
+- [ ] **Human:** open the pinned "Today's town" post on a phone (iOS and Android Reddit apps) and on desktop; check that
+      drag works inside the Reddit app and that a solve shows the result card. Delete the old template counter post.
+- [ ] Snoovatar-in-webview check (needs a real Reddit session)
+
 ## Phase 1 plan (started 2026-11-15)
 1. Engine in `src/shared/engine` (TypeScript, no enums, explicit `.ts` imports so `node --test` can run it): types,
    rules, rng, solver, generator, difficulty, scoring, town validation, bank checks. Tests next to each module.
