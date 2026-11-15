@@ -32,7 +32,14 @@ export function shadeByTime(puzzle, placements, noonRule) {
   placements.forEach((cell, i) => {
     if (cell < 0) return;
     for (const t of TIMES) {
-      for (const s of castShadow(puzzle.size, cell, puzzle.heights[i], t, noonRule)) shade[t].add(s);
+      for (const s of castShadow(
+        puzzle.size,
+        cell,
+        puzzle.heights[i],
+        t,
+        noonRule
+      ))
+        shade[t].add(s);
     }
   });
   return shade;
@@ -58,8 +65,18 @@ export function evaluate(puzzle, placements, noonRule) {
   const allPlaced = placements.every((p) => p >= 0);
   const asleepCount = cats.filter((c) => c.asleep).length;
   const litCount = flowers.filter((f) => f.lit).length;
-  const solved = allPlaced && asleepCount === cats.length && litCount === flowers.length;
-  return { shade, cats, flowers, timeOk, allPlaced, asleepCount, litCount, solved };
+  const solved =
+    allPlaced && asleepCount === cats.length && litCount === flowers.length;
+  return {
+    shade,
+    cats,
+    flowers,
+    timeOk,
+    allPlaced,
+    asleepCount,
+    litCount,
+    solved,
+  };
 }
 
 export function canBuildOn(puzzle, cell) {
@@ -78,7 +95,9 @@ export function solve(puzzle, noonRule, limit = 1, keep = 8) {
     const byCell = new Map();
     for (const cell of ground) {
       const all = TIMES.map((t) => castShadow(size, cell, h, t, noonRule));
-      const killsFlower = all.some((list) => list.some((s) => cells[s] === FLOWER));
+      const killsFlower = all.some((list) =>
+        list.some((s) => cells[s] === FLOWER)
+      );
       byCell.set(cell, { all, killsFlower });
     }
     return byCell;
