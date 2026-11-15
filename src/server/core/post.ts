@@ -19,3 +19,21 @@ export async function createHubPost() {
   }
   return post;
 }
+
+/** Creates the hub post unless one already exists. Safe to call on every install and upgrade. */
+export async function ensureHubPost(): Promise<{
+  id: string;
+  created: boolean;
+}> {
+  const storedId = await redis.get(keys.hubPostId());
+  if (storedId && storedId.startsWith('t3_')) {
+    try {
+      const existing = await reddit.getPostById(`t3_${storedId.slice(3)}`);
+      if (!existing.removed) return { id: existing.id, created: false };
+    } catch {
+      // the stored post is gone: make a new one
+    }
+  }
+  const post = await createHubPost();
+  return { id: post.id, created: true };
+}

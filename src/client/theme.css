@@ -77,3 +77,10 @@ svg text {
   font-weight: 650;
   font-size: 16px;
 }
+
+/* Creature drawings carry every state; these hide the asleep and wilted layers by default. */
+.cat .eyes-closed,
+.cat .zzz,
+.flower .droop {
+  display: none;
+}

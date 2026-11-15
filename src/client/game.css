@@ -189,6 +189,9 @@ header {
   transform: translateY(-6px);
   box-shadow: inset 0 0 0 3px var(--pink);
 }
+.slot.lifted {
+  opacity: 0.35;
+}
 .slot svg {
   width: 56px;
   height: 56px;
@@ -247,10 +250,6 @@ header {
 .cat.off-duty {
   opacity: 0.4;
 }
-.cat .eyes-closed,
-.cat .zzz {
-  display: none;
-}
 .cat.asleep .eyes-open {
   display: none;
 }
@@ -263,9 +262,6 @@ header {
 }
 .flower.wilted .petals {
   opacity: 0.35;
-}
-.flower .droop {
-  display: none;
 }
 .flower.wilted .droop {
   display: inline;

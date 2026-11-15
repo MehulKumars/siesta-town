@@ -624,6 +624,9 @@ document.addEventListener(
         renderShadows({ skip: i });
       }
       renderTray();
+      if (d.source.from === 'tray') {
+        document.querySelector(`.slot[data-i="${i}"]`)?.classList.add('lifted');
+      }
     }
     const lift = liftFor(d);
     const target = cellAt(e.clientX, e.clientY - lift);
