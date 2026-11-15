@@ -125,7 +125,7 @@ All JSON. Requests carry `x-devvit-journey-id` when a journey is active.
 
 "Challenge a friend" uses `showShareSheet()` on the client; no server route.
 
-Internal: `/internal/scheduler/ensure-daily-post` (hourly), `/internal/triggers/app-install` (creates the hub and today's
+Internal: `/internal/scheduler/ensure-daily-post` (every 15 minutes), `/internal/triggers/app-install` (creates the hub and today's
 post, sets `cfg:launchDate`), `/internal/triggers/post-delete`, `/internal/menu/post-today`, `/internal/menu/create-hub`,
 `/internal/menu/review-towns`, `/internal/forms/review-town`.
 
@@ -153,7 +153,7 @@ Reopening a solved day shows the result card directly. The splash shows "Napped 
    a weekday difficulty target (Mon easiest → Sat hardest; Sunday = community town or special). The solver verifies them
    (solvable, solution count). They're graded, and the best candidate per day is kept. Output: `src/server/content/bank.json`.
 2. `scripts/validate-bank.ts` runs in tests: every date present, solvable, difficulty within its band, no duplicates.
-3. **Scheduler `ensure-daily-post`** runs hourly (cron `5 * * * *`): compute today's UTC key. If `post:{d}` is missing:
+3. **Scheduler `ensure-daily-post`** runs every 15 minutes (cron `1,16,31,46 * * * *`; each run is one Redis read when the post exists): compute today's UTC key. If `post:{d}` is missing:
    decide `cal:{d}` (on Sunday, the oldest approved town, else a team town or the bank's special), create the post
    (`submitCustomPost`, entry `default`, `postData: { kind: 'daily', date }`, title from the template), set `post:{d}`,
    then create, distinguish and sticky the app's comment (yesterday's recap + "Share your result here"), and set

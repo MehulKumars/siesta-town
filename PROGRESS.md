@@ -1,7 +1,8 @@
 # PROGRESS.md: running status (agents update this at the end of every session)
 
 ## Current phase
-Phase 0: prove the fun, and set up (Sun Nov 15 – Tue Nov 17)
+Phases 1 and 2 are built (ahead of the plan's dates). Waiting on human playtests (Phase 0b) and phone checks.
+Next for the agent: Phase 3 (Town Builder by Dec 2, archive, art and sound polish).
 
 ## Done
 - Kit added and reviewed against the official Devpost pages (docs/sources/) and the live Devvit docs (2026-11-15).
@@ -77,6 +78,22 @@ Phase 0: prove the fun, and set up (Sun Nov 15 – Tue Nov 17)
 Risks: `runAs: 'USER'` posts from the app account for non-owners until the app is approved (the share text names
 the player, and the server rewrites it if Reddit posted it as the app); flair needs mod rights (cut-list item 5,
 left for later); the scheduler's cron timezone is undocumented (the job is hourly and idempotent, so it doesn't matter).
+
+## Phase 2 status (2026-11-15)
+- [x] Daily post + stickied recap comment, made by a 15-minute idempotent job, install/upgrade and the mod menu
+      ("Post today's town now"); deleted posts forgotten (`onPostDelete`). Scheduler idempotency test (fake Redis/Reddit).
+- [x] Streak bitfields, leaderboard, first drops, stats, rolling TTLs; streak and community line on the result card
+- [x] Result card as a postcard (town stays visible), where-everyone-started map, Post my result (exact preview,
+      `canRunAsUser`, one per town, renamed if Reddit posts it as the app), Challenge a friend (share sheet + splash
+      line from validated share data), Join, yesterday's/today's town; old daily posts point to today's town
+- [x] Report a problem (Reddit form, fixed categories) to modmail; Journeys bridged to Hono, ended server-side on solve
+- [x] 38 unit tests; Playwright: Phase 2 states at 6 sizes + the earlier UX suite at 8 sizes, no problems;
+      screenshots in docs/screens/2026-11-15-phase2
+- [x] README updated (897 words)
+- [ ] Watch 3 consecutive real days auto-post in r/siesta_town_dev with no human action (exit criterion; needs time)
+- [ ] **Human:** on a phone, try Post my result (Reddit may ask permission), Challenge a friend and Join
+- [ ] **Human:** create the public demo subreddit (under 200 members) and install the app there by Nov 26
+- [ ] Opt-in streak flair (postponed, cut-list item 5)
 
 ## Phase 1 plan (started 2026-11-15)
 1. Engine in `src/shared/engine` (TypeScript, no enums, explicit `.ts` imports so `node --test` can run it): types,

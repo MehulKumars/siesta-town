@@ -1582,6 +1582,8 @@ byId('mute-btn', HTMLButtonElement).addEventListener('click', () => {
 window.addEventListener('resize', () => {
   hideGhost();
   if (!state.town) return;
+  // The card's height changes with the width (text wraps), so the postcard is measured again.
+  if (app.dataset.sheet === 'result') setPostcard(true);
   fitBoard();
   if (handAnimation && state.lesson?.id === 'lesson-1') {
     requestAnimationFrame(() => showHand(0, state.lesson?.solution[0] ?? 0));

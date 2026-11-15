@@ -11,9 +11,12 @@ export const scheduler = new Hono();
  */
 scheduler.post('/ensure-daily-post', async (c) => {
   try {
-    await ensureHubPost();
+    const hub = await ensureHubPost();
     const post = await ensureDailyPost(today());
-    if (post?.created) console.log(`Scheduler made today's post ${post.postId}`);
+    // One line per run (96 a day) so a missing post is easy to spot in `devvit logs`.
+    console.log(
+      `ensure-daily-post ${today()}: ${post ? `${post.postId} ${post.created ? 'created' : 'kept'}` : 'another run is creating it'}; hub ${hub.id} ${hub.created ? 'created' : 'kept'}`
+    );
   } catch (error) {
     console.error('ensure-daily-post failed', error);
   }

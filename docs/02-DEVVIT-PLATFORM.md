@@ -110,7 +110,7 @@ Set expiries on per-day and per-user data. The Devvit Rules recommend deleting s
 // devvit.json
 "scheduler": {
   "tasks": {
-    "ensure-daily-post": { "endpoint": "/internal/scheduler/ensure-daily-post", "cron": "5 * * * *" },
+    "ensure-daily-post": { "endpoint": "/internal/scheduler/ensure-daily-post", "cron": "1,16,31,46 * * * *" },
     "one-off":           { "endpoint": "/internal/scheduler/one-off" }
   }
 }
@@ -137,7 +137,7 @@ app.post('/internal/scheduler/ensure-daily-post', async (c) => { /* idempotent: 
 `reddit.getCurrentUser()`, `reddit.getCurrentSubreddit()`, `reddit.submitCustomPost(...)`,
 `reddit.submitComment({ id, text, runAs? })`, `reddit.getPostById(id)`, user flair setting (method name to verify,
 e.g. `setUserFlair`), comment distinguish/sticky (verify). The Reddit API plugin is on by default
-(`"permissions": { "reddit": { "enable": true, "asUser": [...] } }` ✅).
+(`"permissions": { "reddit": { "enable": true, "scope": "user" } }` ✅; checked in the 0.15.3 config schema on 2026-11-15).
 
 **Triggers ✅** (all endpoints `/internal/...`): `onAppInstall`, `onAppUpgrade`, `onPostCreate`, `onPostDelete`,
 `onPostSubmit`, `onPostUpdate`, `onPostReport`, `onPostFlairUpdate`, `onPostNsfwUpdate`, `onPostSpoilerUpdate`,
@@ -151,8 +151,13 @@ expire on its own (rolling TTL ≤ 30 days).
 - Declare it in `devvit.json`:
 
 ```jsonc
-"permissions": { "reddit": { "asUser": ["SUBMIT_COMMENT", "SUBSCRIBE_TO_SUBREDDIT"] } }
+"permissions": { "redis": true, "reddit": { "enable": true, "scope": "user" } }
 ```
+
+- ✅ **Changed (0.15.3 schema, checked 2026-11-15):** `asUser` is "not currently in use"; the schema says to set
+  `scope: "user"` (the default) to post or comment as the user. On the client, `canRunAsUser(event)` (experimental,
+  `@devvit/web/client`) checks, and if needed asks for, the player's consent; it must get the trusted click event.
+  Siesta calls it inside the "Post as u/…" and "Join" taps before calling the server.
 
 - Call with `runAs: 'USER'` (e.g. `submitComment`). `subscribeToCurrentSubreddit()` subscribes as the user by default.
 - ⚠️ **Until the app is published and approved, `runAs: 'USER'` acts from the app account for everyone except
