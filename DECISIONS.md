@@ -55,3 +55,5 @@ Format: `YYYY-MM-DD · decision · why · alternatives considered · who`
 - 2026-11-15 · The sun moves along a dotted arc around the board (east, south, west) · shows where the sun is and why shadows point the other way · straight jump · agent
 - 2026-11-15 · Two-column layout for landscape phones and short windows; tuned spacing for short and tall portrait screens · Reddit's expanded view can be any shape · one layout · agent
 - 2026-11-15 · Provisional font: Shantell Sans (OFL), bundled from @fontsource (latin 400/700/800) · most distinctive and hand-made of three candidates (Shantell Sans, Young Serif headings, Baloo 2); comparison screenshots in docs/screens/2026-11-15-ux/font-options · **awaiting human sign-off** · agent
+- 2026-11-15 · Code pushed to a private GitHub repo, MehulKumars/siesta-town · backup and authorship history; can go public at submission (optional on Devpost) · public now · user
+- 2026-11-15 · CI runs typecheck, lint, unit tests and build in sequence (the template used a parallel-steps syntax GitHub rejected); Dependabot config removed · CI must actually run; automatic dependency bumps mid-hackathon are risky · keep Dependabot · agent
