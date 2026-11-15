@@ -365,3 +365,340 @@ header {
     animation: none !important;
   }
 }
+
+/* ---------- iteration 2: coaching, lessons, feedback, help, layouts ---------- */
+
+.coach {
+  flex: none;
+  margin: 0;
+  min-height: 2.7em;
+  font-size: 15.5px;
+  line-height: 1.38;
+  font-weight: 560;
+  color: var(--ink);
+  background: var(--white);
+  border-radius: 12px;
+  padding: 9px 12px;
+  box-shadow: inset 0 0 0 1.5px rgba(27, 39, 102, 0.18);
+  display: flex;
+  align-items: center;
+}
+.coach:empty {
+  display: none;
+}
+.app[data-mode='lesson'] .coach {
+  box-shadow: inset 0 0 0 2px var(--ink);
+  font-weight: 650;
+}
+
+.text-btn {
+  min-width: 44px;
+  height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  font-weight: 650;
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+.text-btn[hidden] {
+  display: none;
+}
+
+/* Hidden until the town has loaded */
+.app[data-state='loading'] .toggle,
+.app[data-state='loading'] .board-wrap,
+.app[data-state='loading'] .status,
+.app[data-state='loading'] .tray-row,
+.app[data-state='loading'] .coach,
+.app[data-state='error'] .toggle,
+.app[data-state='error'] .board-wrap,
+.app[data-state='error'] .status,
+.app[data-state='error'] .tray-row,
+.app[data-state='error'] .coach {
+  display: none;
+}
+.app[data-state='ready'] .load-status {
+  display: none;
+}
+
+/* The sun's path around the board */
+.sun-path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-opacity: 0.22;
+  stroke-width: 3;
+  stroke-dasharray: 2 12;
+  stroke-linecap: round;
+}
+
+/* What's wrong when every house is placed but the town isn't asleep */
+.cat .ring,
+.flower .ring {
+  fill: none;
+  stroke: var(--pink);
+  stroke-width: 6;
+  opacity: 0;
+}
+.cat.trouble .ring,
+.flower.trouble .ring {
+  opacity: 1;
+  animation: trouble 1.4s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.cat.trouble.off-duty {
+  opacity: 0.75;
+}
+@keyframes trouble {
+  50% {
+    transform: scale(0.88);
+    opacity: 0.45;
+  }
+}
+
+/* A house settles when it lands */
+.house.just-placed {
+  animation: settle 260ms ease-out;
+  transform-box: fill-box;
+  transform-origin: 50% 90%;
+}
+@keyframes settle {
+  0% {
+    transform: scale(1.12) translateY(-6%);
+  }
+  60% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* Lesson 2: the Noon button asks to be tapped */
+.toggle button.beckon {
+  animation: beckon 1.3s ease-in-out infinite;
+}
+@keyframes beckon {
+  50% {
+    box-shadow: 0 0 0 4px var(--pink);
+  }
+}
+
+/* The drag hint */
+.hand {
+  position: fixed;
+  left: -28px;
+  top: -28px;
+  width: 56px;
+  height: 56px;
+  pointer-events: none;
+  z-index: 22;
+}
+.hand[hidden] {
+  display: none;
+}
+.hand > svg:first-child {
+  width: 100%;
+  height: 100%;
+  opacity: 0.55;
+}
+.hand .touch {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 34px;
+  height: 34px;
+  transform: translate(-50%, -20%);
+}
+
+/* Status: a finished time of day gets a soft highlight */
+.sun-check.ok svg:first-child {
+  color: var(--ok);
+}
+
+/* Help sheet */
+.help {
+  max-height: 92dvh;
+  overflow-y: auto;
+}
+.help-diagrams {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 12px 0 6px;
+}
+.help-diagrams figure {
+  margin: 0;
+  text-align: center;
+}
+.help-diagrams svg {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+}
+.diagram-shade {
+  fill: url(#hatch);
+}
+.help-diagrams figcaption {
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--ink-soft);
+}
+.help-diagrams figcaption strong {
+  display: block;
+  font-size: 14px;
+  color: var(--ink);
+}
+.help-rules {
+  list-style: none;
+  margin: 10px 0 4px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.help-rules li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 15px;
+  line-height: 1.4;
+}
+.rule-icon {
+  flex: none;
+  width: 34px;
+  height: 34px;
+}
+.rule-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.sheet .secondary {
+  margin-top: 8px;
+}
+.sheet .secondary[hidden] {
+  display: none;
+}
+
+/* Keyboard focus is always visible */
+button:focus-visible {
+  outline: 3px solid var(--pink);
+  outline-offset: 2px;
+}
+
+/* Very short screens: tighten the chrome so the board keeps its room */
+@media (max-height: 600px) and (orientation: portrait) {
+  .app {
+    gap: 6px;
+  }
+  .titles h1 {
+    font-size: 18px;
+  }
+  .titles p {
+    font-size: 13.5px;
+  }
+  .coach {
+    font-size: 14px;
+    padding: 7px 10px;
+    min-height: 0;
+  }
+  .toggle button {
+    height: 40px;
+  }
+  .tray-row {
+    height: 72px;
+  }
+  .slot {
+    height: 66px;
+  }
+  .slot svg {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+/* Landscape phones and short desktop windows: board on the left, everything else on the right */
+@media (orientation: landscape) and (max-height: 560px) {
+  .app {
+    max-width: 900px;
+    display: grid;
+    grid-template-columns: var(--board, 300px) minmax(260px, 1fr);
+    grid-template-rows: auto auto 1fr auto auto auto;
+    grid-template-areas:
+      'board header'
+      'board coach'
+      'board spacer'
+      'board toggle'
+      'board status'
+      'board tray';
+    column-gap: 16px;
+    row-gap: 8px;
+    padding: max(8px, env(safe-area-inset-top))
+      max(12px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+  header {
+    grid-area: header;
+  }
+  .coach {
+    grid-area: coach;
+  }
+  .spacer {
+    grid-area: spacer;
+  }
+  .load-status {
+    grid-area: coach;
+  }
+  .toggle {
+    grid-area: toggle;
+  }
+  .board-wrap {
+    grid-area: board;
+    align-self: center;
+    width: var(--board, 300px);
+  }
+  .status {
+    grid-area: status;
+  }
+  .tray-row {
+    grid-area: tray;
+  }
+  .sheet {
+    max-width: 560px;
+  }
+}
+
+.spacer-bottom {
+  flex: 0.35 1 0;
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  .spacer-bottom {
+    display: none;
+  }
+}
+
+/* Tall phones: give the controls more presence instead of empty space */
+@media (min-height: 760px) and (orientation: portrait) {
+  .coach {
+    font-size: 16.5px;
+    padding: 11px 14px;
+  }
+  .toggle button {
+    height: 50px;
+    font-size: 16px;
+  }
+  .tray-row {
+    height: 96px;
+  }
+  .slot {
+    height: 88px;
+  }
+  .slot svg {
+    width: 64px;
+    height: 64px;
+  }
+  .status {
+    height: 40px;
+  }
+}

@@ -11,6 +11,7 @@ export const keys = {
   firstSeen: (date: DayKey, userId: string) => `seen:${date}:${userId}`,
   progress: (date: DayKey, userId: string) => `progress:${date}:${userId}`,
   result: (date: DayKey, userId: string) => `result:${date}:${userId}`,
+  user: (userId: string) => `user:${userId}`,
 } as const;
 
 export const ttlSeconds = {
@@ -18,6 +19,8 @@ export const ttlSeconds = {
   firstSeen: 3 * DAY_SECONDS,
   progress: 3 * DAY_SECONDS,
   result: 30 * DAY_SECONDS,
+  /** Rolling: renewed whenever the player opens the game. */
+  user: 30 * DAY_SECONDS,
 } as const;
 
 export function expiresIn(seconds: number): Date {

@@ -1,6 +1,7 @@
 import type {
   InitResponse,
   ProgressRequest,
+  SettingsRequest,
   SubmitRequest,
   SubmitResponse,
 } from '../shared/api.ts';
@@ -75,4 +76,16 @@ export async function submitSolve(
   throw lastError instanceof Error
     ? lastError
     : new Error('Could not reach the server');
+}
+
+export async function sendSettings(request: SettingsRequest): Promise<void> {
+  try {
+    await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+  } catch {
+    // settings are a convenience; the local copy still applies this session
+  }
 }

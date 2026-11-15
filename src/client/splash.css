@@ -23,15 +23,23 @@
 }
 .level {
   display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink-soft);
+}
+.level .dots {
+  display: flex;
   gap: 4px;
 }
-.level span {
+.level .dots span {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   box-shadow: inset 0 0 0 1.5px var(--ink);
 }
-.level span.on {
+.level .dots span.on {
   background: var(--ink);
 }
 .town h1 {
@@ -68,4 +76,15 @@
   text-align: center;
   font-size: 15px;
   font-weight: 600;
+}
+
+.preview .cat.asleep .eyes-open {
+  display: none;
+}
+.preview .cat.asleep .eyes-closed,
+.preview .cat.asleep .zzz {
+  display: inline;
+}
+.preview .ring {
+  display: none;
 }

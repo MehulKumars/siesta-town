@@ -129,6 +129,7 @@ export function drawCat(
     { class: 'cat', transform: `translate(${x} ${y})` },
     parent
   );
+  svgEl('circle', { class: 'ring', cx: 50, cy: 52, r: 44 }, g);
   const line = {
     stroke: 'var(--ink)',
     'stroke-width': 5,
@@ -186,6 +187,7 @@ export function drawFlower(
     { class: 'flower', transform: `translate(${x} ${y})` },
     parent
   );
+  svgEl('circle', { class: 'ring', cx: 50, cy: 50, r: 44 }, g);
   const petals = svgEl('g', { class: 'petals' }, g);
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
@@ -306,3 +308,83 @@ export const catIconSvg =
 
 export const flowerIconSvg =
   '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="28" r="16" fill="#e8378a" stroke="#1b2766" stroke-width="6"/><circle cx="72" cy="46" r="16" fill="#e8378a" stroke="#1b2766" stroke-width="6"/><circle cx="62" cy="72" r="16" fill="#e8378a" stroke="#1b2766" stroke-width="6"/><circle cx="38" cy="72" r="16" fill="#e8378a" stroke="#1b2766" stroke-width="6"/><circle cx="28" cy="46" r="16" fill="#e8378a" stroke="#1b2766" stroke-width="6"/><circle cx="50" cy="52" r="12" fill="#e0a91f" stroke="#1b2766" stroke-width="6"/></svg>';
+
+/**
+ * A 3×3 teaching diagram for one time of day: a height-2 house in the middle, its shadow, and the sun
+ * on the edge it shines from. Used on the How to play sheet.
+ */
+export function drawShadowDiagram(
+  svg: SVGSVGElement,
+  time: TimeOfDay,
+  shaded: number[]
+): void {
+  const size = 3;
+  const span = size * CELL;
+  const m = 46;
+  svg.replaceChildren();
+  svg.setAttribute('viewBox', `${-m} ${-m} ${span + m * 2} ${span + m * 2}`);
+  drawGround(svg, size);
+  for (const cell of shaded) {
+    const { x, y } = cellOrigin(size, cell);
+    svgEl(
+      'rect',
+      { class: 'diagram-shade', x, y, width: CELL, height: CELL },
+      svg
+    );
+  }
+  const { x, y } = cellOrigin(size, 4);
+  drawHouse(svgEl('g', { transform: `translate(${x} ${y})` }, svg), 2);
+  svgEl(
+    'rect',
+    { class: 'frame', x: 0, y: 0, width: span, height: span, rx: 4 },
+    svg
+  );
+  const edge = m / 2 + 4;
+  const pos = {
+    am: [span + edge, span / 2],
+    noon: [span / 2, span + edge],
+    pm: [-edge, span / 2],
+  }[time];
+  const sun = svgEl(
+    'g',
+    { transform: `translate(${pos[0] ?? 0} ${pos[1] ?? 0})` },
+    svg
+  );
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    svgEl(
+      'line',
+      {
+        x1: Math.cos(a) * 16,
+        y1: Math.sin(a) * 16,
+        x2: Math.cos(a) * 23,
+        y2: Math.sin(a) * 23,
+        stroke: 'var(--ink)',
+        'stroke-width': 4,
+        'stroke-linecap': 'round',
+      },
+      sun
+    );
+  }
+  svgEl(
+    'circle',
+    { r: 12, fill: 'var(--sun-deep)', stroke: 'var(--ink)', 'stroke-width': 4 },
+    sun
+  );
+}
+
+/** A still drawing of a solved town: houses placed and every cat asleep. Only ever shown to its solver. */
+export function drawSleepingTown(
+  svg: SVGSVGElement,
+  puzzle: Puzzle,
+  placements: number[]
+): void {
+  drawTownPreview(svg, puzzle);
+  svg.querySelectorAll('.cat').forEach((cat) => cat.classList.add('asleep'));
+  placements.forEach((cell, i) => {
+    const height = puzzle.heights[i];
+    if (cell < 0 || height === undefined) return;
+    const { x, y } = cellOrigin(puzzle.size, cell);
+    drawHouse(svgEl('g', { transform: `translate(${x} ${y})` }, svg), height);
+  });
+}

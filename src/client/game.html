@@ -9,13 +9,16 @@
     <title>Siesta</title>
   </head>
   <body>
-    <div class="app" id="app">
+    <div class="app" id="app" data-state="loading">
       <header>
         <div class="titles">
           <h1 id="title">Siesta</h1>
           <p id="subtitle"></p>
         </div>
         <div class="header-actions">
+          <button type="button" class="text-btn" id="skip-btn" hidden>
+            Skip
+          </button>
           <button
             type="button"
             class="icon-btn"
@@ -39,7 +42,8 @@
             type="button"
             class="icon-btn"
             id="mute-btn"
-            aria-label="Sound"
+            aria-label="Mute sound"
+            aria-pressed="false"
           >
             <svg
               viewBox="0 0 24 24"
@@ -66,6 +70,7 @@
       </header>
       <div class="load-status" id="load-status" role="status"></div>
       <div class="spacer"></div>
+      <p class="coach" id="coach" aria-live="polite"></p>
       <div
         class="toggle"
         id="toggle"
@@ -102,7 +107,10 @@
           </svg>
         </button>
       </div>
+      <div class="spacer spacer-bottom"></div>
     </div>
+
+    <div class="hand" id="hand" hidden aria-hidden="true"></div>
     <div class="ghost" id="ghost"></div>
     <div class="scrim" id="scrim"></div>
     <div
@@ -113,20 +121,33 @@
       aria-label="Result"
     ></div>
     <div
-      class="sheet"
+      class="sheet help"
       id="help-sheet"
       role="dialog"
       aria-modal="true"
       aria-labelledby="help-title"
     >
       <h2 id="help-title">How to play</h2>
-      <p>
-        Drag each house onto empty ground. Every cat must nap in shade at its
-        time: tap a cat to see when. Flowers need sun all day.
-      </p>
-      <p id="help-shadows"></p>
+      <div class="help-diagrams" id="help-diagrams"></div>
+      <ul class="help-rules">
+        <li>
+          <span class="rule-icon cat-icon" aria-hidden="true"></span
+          ><span id="help-cats"></span>
+        </li>
+        <li>
+          <span class="rule-icon flower-icon" aria-hidden="true"></span
+          ><span id="help-flowers"></span>
+        </li>
+        <li>
+          <span class="rule-icon house-icon" aria-hidden="true"></span
+          ><span id="help-houses"></span>
+        </li>
+      </ul>
       <button type="button" class="primary" id="help-close">
         Back to the town
+      </button>
+      <button type="button" class="secondary" id="help-replay">
+        Replay the lessons
       </button>
     </div>
     <script type="module" src="game.ts"></script>

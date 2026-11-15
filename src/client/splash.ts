@@ -3,7 +3,7 @@ import './theme.css';
 import './splash.css';
 import { requestExpandedMode } from '@devvit/web/client';
 import { longDate } from '../shared/dates.ts';
-import { drawTownPreview } from './art.ts';
+import { drawSleepingTown, drawTownPreview } from './art.ts';
 import { copy } from './copy.ts';
 import { fetchInit } from './net.ts';
 
@@ -42,16 +42,25 @@ async function fill(): Promise<void> {
     byId('town-date', HTMLParagraphElement).textContent = init.isToday
       ? copy.townNumber(town.number, longDate(town.date))
       : copy.oldTown(town.number);
-    drawTownPreview(byId('preview', SVGSVGElement), town.puzzle);
+    const preview = byId('preview', SVGSVGElement);
+    if (init.result)
+      drawSleepingTown(preview, town.puzzle, init.result.placements);
+    else drawTownPreview(preview, town.puzzle);
     const level = byId('level', HTMLDivElement);
     level.replaceChildren();
     level.setAttribute('aria-label', copy.difficulty(town.level));
     level.removeAttribute('aria-hidden');
+    const dots = document.createElement('span');
+    dots.className = 'dots';
     for (let i = 1; i <= 7; i++) {
       const dot = document.createElement('span');
       if (i <= town.level) dot.className = 'on';
-      level.appendChild(dot);
+      dots.appendChild(dot);
     }
+    const word = document.createElement('span');
+    word.className = 'word';
+    word.textContent = copy.difficultyWord(town.level);
+    level.append(word, dots);
     if (init.result) {
       byId('status', HTMLParagraphElement).textContent = copy.nappedIn(
         formatTime(init.result.timeMs)

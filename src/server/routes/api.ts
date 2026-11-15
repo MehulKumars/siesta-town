@@ -1,11 +1,16 @@
 import { Hono } from 'hono';
 import { context, reddit } from '@devvit/web/server';
-import { isProgressRequest, isSubmitRequest } from '../../shared/api.ts';
+import {
+  isProgressRequest,
+  isSettingsRequest,
+  isSubmitRequest,
+} from '../../shared/api.ts';
 import type {
   ErrorResponse,
   InitResponse,
   OkResponse,
   PostKind,
+  Settings,
   SolveRecord,
   SubmitResponse,
 } from '../../shared/api.ts';
@@ -22,6 +27,11 @@ import {
   saveProgress,
   saveResult,
 } from '../services/results.ts';
+import {
+  defaultSettings,
+  getSettings,
+  saveSettings,
+} from '../services/settings.ts';
 
 export const api = new Hono();
 
@@ -46,10 +56,12 @@ api.get('/init', async (c) => {
     const userId = context.userId;
     let progress = null;
     let result: SolveRecord | null = null;
+    let settings: Settings = defaultSettings;
     if (userId) {
-      [progress, result] = await Promise.all([
+      [progress, result, settings] = await Promise.all([
         getProgress(date, userId),
         getResult(date, userId),
+        getSettings(userId),
       ]);
       if (!result) await markFirstSeen(date, userId);
     }
@@ -61,6 +73,7 @@ api.get('/init', async (c) => {
       today: today(),
       msUntilNext: msUntilNextDay(new Date()),
       user: { loggedIn: Boolean(userId), username: username ?? null },
+      settings,
       progress,
       result,
     });
@@ -118,4 +131,12 @@ api.post('/submit', async (c) => {
       500
     );
   }
+});
+
+api.post('/settings', async (c) => {
+  const body: unknown = await c.req.json().catch(() => null);
+  if (!isSettingsRequest(body)) return c.json(fail('Bad settings.'), 400);
+  const userId = context.userId;
+  if (userId) await saveSettings(userId, body);
+  return c.json<OkResponse>({ type: 'ok' });
 });

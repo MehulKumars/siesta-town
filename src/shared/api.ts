@@ -26,6 +26,11 @@ export type SolveRecord = {
   solvedAt: number;
 };
 
+/** Per-player settings. Kept in Redis because localStorage is wiped on every app update. */
+export type Settings = { tutorialDone: boolean; muted: boolean };
+
+export type SettingsRequest = { tutorialDone?: boolean; muted?: boolean };
+
 export type InitResponse = {
   type: 'init';
   town: PublicTown;
@@ -34,6 +39,7 @@ export type InitResponse = {
   today: DayKey;
   msUntilNext: number;
   user: { loggedIn: boolean; username: string | null };
+  settings: Settings;
   progress: SavedProgress | null;
   result: SolveRecord | null;
 };
@@ -95,5 +101,14 @@ export function isSubmitRequest(value: unknown): value is SubmitRequest {
     isFiniteNonNegative(value.timeMs) &&
     Number.isInteger(value.hints) &&
     Number.isInteger(value.moves)
+  );
+}
+
+export function isSettingsRequest(value: unknown): value is SettingsRequest {
+  if (!isRecord(value)) return false;
+  const { tutorialDone, muted } = value;
+  return (
+    (tutorialDone === undefined || typeof tutorialDone === 'boolean') &&
+    (muted === undefined || typeof muted === 'boolean')
   );
 }
