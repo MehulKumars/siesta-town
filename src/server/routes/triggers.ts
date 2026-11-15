@@ -1,29 +1,27 @@
 import { Hono } from 'hono';
 import type { OnAppInstallRequest, TriggerResponse } from '@devvit/web/shared';
 import { context } from '@devvit/web/server';
-import { createPost } from '../core/post';
+import { createHubPost } from '../core/post.ts';
+import { launchDate } from '../services/calendar.ts';
 
 export const triggers = new Hono();
 
 triggers.post('/on-app-install', async (c) => {
   try {
-    const post = await createPost();
     const input = await c.req.json<OnAppInstallRequest>();
-
+    const launch = await launchDate();
+    const post = await createHubPost();
     return c.json<TriggerResponse>(
       {
         status: 'success',
-        message: `Post created in subreddit ${context.subredditName} with id ${post.id} (trigger: ${input.type})`,
+        message: `Hub post ${post.id} created in r/${context.subredditName}; town No. 1 is ${launch} (trigger: ${input.type})`,
       },
       200
     );
   } catch (error) {
-    console.error(`Error creating post: ${error}`);
+    console.error('Install setup failed', error);
     return c.json<TriggerResponse>(
-      {
-        status: 'error',
-        message: 'Failed to create post',
-      },
+      { status: 'error', message: 'Failed to set up the app' },
       400
     );
   }

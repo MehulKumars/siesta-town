@@ -1,15 +1,134 @@
 <!doctype html>
-<html lang="en" class="h-full">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <title>devvit</title>
+    <title>Siesta</title>
   </head>
-  <body class="h-full">
-    <div id="root" class="h-full"></div>
-    <script type="module" src="game.tsx"></script>
+  <body>
+    <div class="app" id="app">
+      <header>
+        <div class="titles">
+          <h1 id="title">Siesta</h1>
+          <p id="subtitle"></p>
+        </div>
+        <div class="header-actions">
+          <button
+            type="button"
+            class="icon-btn"
+            id="help-btn"
+            aria-label="How to play"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9.5" />
+              <path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.8-2.5 2.2-2.5 3.8" />
+              <circle cx="12" cy="17.2" r="0.6" fill="currentColor" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="icon-btn"
+            id="mute-btn"
+            aria-label="Sound"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />
+              <path
+                id="mute-waves"
+                d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"
+              />
+              <path
+                id="mute-cross"
+                d="M16 9.5l5 5M21 9.5l-5 5"
+                style="display: none"
+              />
+            </svg>
+          </button>
+        </div>
+      </header>
+      <div class="load-status" id="load-status" role="status"></div>
+      <div class="spacer"></div>
+      <div
+        class="toggle"
+        id="toggle"
+        role="group"
+        aria-label="Time of day"
+      ></div>
+      <div class="board-wrap">
+        <svg id="board" role="img" aria-label="Town board"></svg>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      </div>
+      <div class="status">
+        <div class="suns" id="suns"></div>
+        <div class="counts" id="counts"></div>
+      </div>
+      <div class="tray-row">
+        <div class="tray" id="tray" aria-label="Houses to place"></div>
+        <button
+          type="button"
+          class="icon-btn"
+          id="reset-btn"
+          aria-label="Put all houses back"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" />
+            <path d="M4.5 4.5v3.8h3.8" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="ghost" id="ghost"></div>
+    <div class="scrim" id="scrim"></div>
+    <div
+      class="sheet"
+      id="result-sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Result"
+    ></div>
+    <div
+      class="sheet"
+      id="help-sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="help-title"
+    >
+      <h2 id="help-title">How to play</h2>
+      <p>
+        Drag each house onto empty ground. Every cat must nap in shade at its
+        time: tap a cat to see when. Flowers need sun all day.
+      </p>
+      <p id="help-shadows"></p>
+      <button type="button" class="primary" id="help-close">
+        Back to the town
+      </button>
+    </div>
+    <script type="module" src="game.ts"></script>
   </body>
 </html>

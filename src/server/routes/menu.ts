@@ -1,14 +1,13 @@
 import { Hono } from 'hono';
 import type { UiResponse } from '@devvit/web/shared';
 import { context } from '@devvit/web/server';
-import { createPost } from '../core/post';
+import { createHubPost } from '../core/post.ts';
 
 export const menu = new Hono();
 
-menu.post('/post-create', async (c) => {
+menu.post('/create-hub', async (c) => {
   try {
-    const post = await createPost();
-
+    const post = await createHubPost();
     return c.json<UiResponse>(
       {
         navigateTo: `https://reddit.com/r/${context.subredditName}/comments/${post.id}`,
@@ -16,27 +15,7 @@ menu.post('/post-create', async (c) => {
       200
     );
   } catch (error) {
-    console.error(`Error creating post: ${error}`);
-    return c.json<UiResponse>(
-      {
-        showToast: 'Failed to create post',
-      },
-      400
-    );
+    console.error('Could not create the hub post', error);
+    return c.json<UiResponse>({ showToast: 'Could not create the post' }, 400);
   }
-});
-
-menu.post('/example-form', async (c) => {
-  return c.json<UiResponse>(
-    {
-      showForm: {
-        name: 'exampleForm',
-        form: {
-          title: 'Example form',
-          fields: [{ name: 'message', label: 'Message', type: 'string' }],
-        },
-      },
-    },
-    200
-  );
 });

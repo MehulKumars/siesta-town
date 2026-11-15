@@ -38,6 +38,22 @@ Phase 0: prove the fun, and set up (Sun Nov 15 – Tue Nov 17)
       user-content attribution rule, or does each town need a comment posted as its author?
 - Snoovatars in the webview: the agent will test this itself in Phase 1 (no need to ask).
 
+## Phase 1 plan (started 2026-11-15)
+1. Engine in `src/shared/engine` (TypeScript, no enums, explicit `.ts` imports so `node --test` can run it): types,
+   rules, rng, solver, generator, difficulty, scoring, town validation, bank checks. Tests next to each module.
+2. `src/shared/dates.ts`: UTC day keys, weekdays, puzzle numbers, time to next UTC midnight.
+3. `scripts/generate-puzzles.ts` → `src/server/content/bank.json` (2026-11-17 → 2027-12-31), noon rule `one` for now;
+   `src/server/content/bank.test.ts` validates every day.
+4. Server: `repo/keys.ts`, puzzle service (bank, then runtime fallback), `/api/init` (hub → today, daily → its date;
+   never the solution), `/api/progress`, `/api/submit` (replay + time check + store), hub post on install and via menu.
+5. Client, no React (smaller, and the imperative drag code from the prototype ports straight over):
+   `splash.html` (inline, taps only, fetches init after first paint) and `game.html` (board, drag + preview,
+   tap-to-place, time toggle, strip, siesta, simple result card, How to play). All strings in `copy.ts`.
+6. Check: types, lint, unit tests, Playwright screenshots against a mocked API, then a Reddit playtest.
+7. README.md for the app.
+Risks: Node's TS stripping vs the tsc project setup; JSON import attributes in the server bundle; drag inside the
+Reddit webview on iOS.
+
 ## Known bugs
 - Prototype only: on a 360×640 screen the toast can cover the bottom row of the board for 1.6 s.
 
