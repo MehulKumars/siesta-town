@@ -56,6 +56,10 @@ app a unique identity, make it accessible, and make sure you're thinking of your
       the game!", no "Great job!", no exclamation-mark spam.
 - [ ] Copy has a voice that fits the theme (Siesta: warm, sleepy, gently funny).
 - [ ] Restraint: no feature on screen that a judge would have to be told about. Fewer, better things.
+- [ ] None of the template tells listed in `.claude/skills/frontend-design`: cream background + editorial serif +
+      terracotta accent; tracked-out ALL-CAPS eyebrow labels; meta strings joined with middle dots ("A · B · C");
+      a "→" appended to button text; identical rounded cards with the same soft grey shadow; fade-and-slide-up on every
+      element. One orchestrated moment (the siesta) instead of scattered effects.
 
 ## Reliability
 - [ ] No console errors. Works logged-out (full play, a gentle note that progress isn't saved, login offered after solving).

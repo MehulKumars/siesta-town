@@ -26,7 +26,7 @@ ALL-IN-ONE.md             ← every doc in one file, for agents that take a sing
 ```
 
 ## Steps
-1. Install Node 22.2+, Git, Claude Code. Log in to Reddit in a browser.
+1. Install Node 24+, Git, Claude Code. Log in to Reddit in a browser.
 2. `npm create devvit@latest --template=react` (or `phaser`) → follow the wizard → `cd` into the project.
 3. Copy everything from this kit into the project root (keep the template's own README as `README.template.md`;
    the app needs its own README later).

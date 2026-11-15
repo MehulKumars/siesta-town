@@ -205,7 +205,7 @@ The telemetry wrapper must no-op safely if Journeys is not yet allowlisted.
 
 ## 10. Testing strategy
 
-- **Engine:** Vitest unit and property tests (random boards: the solver's solutions always validate; the generator hits its
+- **Engine:** unit and property tests with `node --test` (the template's `npm run test:unit`) (random boards: the solver's solutions always validate; the generator hits its
   difficulty bands; town validation rejects illegal grids).
 - **Server:** route tests with an in-memory Redis fake (no lists or sets in the fake either, to match Devvit); the
   scheduler's idempotency test (run twice → one post, one sticky comment); streak tests from Reddit's list (no play → 0,

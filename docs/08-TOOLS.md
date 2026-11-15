@@ -4,7 +4,7 @@
 | Tool | Why |
 |---|---|
 | **Claude Code** (terminal; VS Code extension optional) | The main build agent. Run it in the repo root so it loads CLAUDE.md. Use a fresh session for reviews. |
-| **Node.js 22.2+** via nvm (nvm-windows on Windows) | Devvit requirement |
+| **Node.js 24+** via nvm (nvm-windows on Windows) | Devvit requirement |
 | **Devvit CLI** + an official **Devvit Web template** (`npm create devvit@latest --template=react` or `phaser`) | build, playtest (`npm run dev`), upload (`npm run deploy`) |
 | **Git + a private GitHub repo** (+ `gh`) | history, branches, one branch per agent task. Start on day one: the history is our authorship evidence |
 | **Reddit accounts** for each teammate, plus the **Reddit app on iOS and Android** | real-device testing is mandatory |
@@ -19,7 +19,7 @@
 
 ## In the codebase
 TypeScript (strict) · Vite (from the template) · **React** for the expanded game (or **Phaser 4** if the game needs
-sprite animation) · plain TS (or Preact) for the inline splash to stay under 50 KB · Vitest (engine tests) · Playwright
+sprite animation) · plain TS (or Preact) for the inline splash to stay under 50 KB · `node --test` (engine tests, set up by the template) · Playwright
 (visual tests, including a "page must not scroll" check) · Lighthouse in Chrome DevTools (splash score above 80) · ESLint + Prettier.
 Avoid Unity/Godot/GameMaker for this game: bigger bundles and slower first load in the feed, with no benefit for a grid puzzle.
 Phase 0's `prototype/siesta.html` is plain HTML + JS with no build step, so anyone can open it on a phone.

@@ -84,11 +84,12 @@ players all tied at par. Daily logic puzzles that thrive (LinkedIn's Queens, NYT
   "Harbour", "Market", "Steps"), combined by the seed. The Town Builder offers the same lists as a picker. No free text.
 
 ### A7. Screens
-1. **Splash (inline, taps only, fits the post).** Wordmark, `#n · weekday · date`, town name, a small static drawing of
-   today's town (from the puzzle, no solution), difficulty dots (1–7), my streak, "Town by u/…" on community days, and
-   one call to action: "Play today's town". A returning solved player sees "Napped in 1:42 · streak 7" and the button
-   becomes "See results". On an **old daily post**: "This was #12. Today's town is up →" (`navigateTo`) and a quieter
-   "Play #12 anyway". With challenge share data: "A friend napped this town in 1:42."
+1. **Splash (inline, taps only, fits the post).** Wordmark, the town name, "No. 14, Monday 14 December", a small static
+   drawing of today's town (from the puzzle, no solution), difficulty dots (1–7), my streak, "Town by u/…" on community
+   days, and one call to action: "Play today's town". A returning solved player sees "Napped in 1:42. Streak: 7 days." and
+   the button becomes "See results". On an **old daily post**: "This was No. 12." with a button "Go to today's town"
+   (`navigateTo`) and a quieter "Play No. 12 anyway". With challenge share data: "A friend napped this town in 1:42."
+   *(No middle-dot meta strings and no "→" on buttons: both are listed AI-design tells in `.claude/skills/frontend-design`.)*
 2. **First-time tutorial (expanded).** Three tiny interactive boards: (1) one cat, one building, morning only
    ("Drag the house so the cat is in its shadow"); (2) the time toggle, with a noon cat; (3) a flower that must stay lit.
    Under 40 seconds, skippable, at most 15 words per step. Never a wall of text.
@@ -112,8 +113,8 @@ players all tied at par. Daily logic puzzles that thrive (LinkedIn's Queens, NYT
   solving. Under 10 players: "You're one of the first N to nap this town" instead of percentages.
 - **Stats:** `stats:{d}` = solves, clean naps, time distribution buckets.
 - **Streaks:** Reddit's bitfield pattern (PLATFORM §3), keyed by the puzzle's date. Opt-in flair: "Siesta streak N".
-- **Share text** (spoiler-free; emoji are fine inside a comment):
-  `Siesta #14 · Little Harbour — 1:42 · clean nap · 🌅✓ ☀️✓ 🌇✓ · streak 7`
+- **Share text** (spoiler-free; emoji are fine inside a comment), two short lines:
+  `Siesta No. 14, Little Harbour: asleep in 1:42, no hints. Streak: 7 days.` / `🌅✓ ☀️✓ 🌇✓`
 - **Challenge a friend:** `showShareSheet({ text: "I put every cat in Little Harbour to sleep in 1:42. Your turn?",
   data: '{"d":"2026-12-14","t":102}' })`. The recipient's splash reads it with `getShareData()`. Show it only if `d`
   matches the post's date, and never show a name from share data (it can be faked).
@@ -138,15 +139,18 @@ players all tied at par. Daily logic puzzles that thrive (LinkedIn's Queens, NYT
 - A custom share image per daily post (`shareImageUrl`), if `media.upload` works with a bundled image.
 
 ### A10. Art and audio direction: "print-shop siesta" (a human signs this off in Phase 0–1)
-- **Look:** a two-to-three-ink print on warm paper, like a risograph poster of a small Mediterranean town. Flat shapes,
-  ink outlines, a fine paper grain (one small tiled texture, not a CSS filter).
-- **Shade is hatching.** Shadows are diagonal violet hatching over the sand, not just a darker fill. It reads instantly,
-  doesn't depend on colour (colour-blind safe by texture), and gives the game a look no other entry will have.
-  Sunlit tiles stay clean paper.
-- **Palette (spot inks):** paper sand `#F4E6CC`, ink `#2B2240`, terracotta `#C4553B`, shade violet `#6E62A0`,
-  sun `#F2B134`, flower pink `#E05A7A`. Shade and sun must also differ strongly in lightness.
+- **Look:** a riso-style print of a whitewashed town at noon: a sun-baked yellow board, white houses and cats drawn in
+  one blue ink, pink flowers. Flat shapes, ink outlines, optionally a fine grain (one small tiled texture, not a CSS filter).
+- **Shade is hatching.** Shadows are diagonal blue hatching over the yellow ground, not just a darker fill. It reads
+  instantly, doesn't depend on colour (colour-blind safe by texture and lightness), and gives the game a look no other
+  entry will have. Sunlit tiles stay clean yellow.
+- **Palette (candidate, used in the Phase 0 prototype):** whitewash sky `#E9EFF6`, blue ink `#1B2766`, shade blue
+  `#2F49A6`, sun yellow `#F3C94F`, deep sun `#E0A91F`, flower pink `#E8378A`, well water `#9CC6EA`, white `#FFFFFF`.
+  *v1's sand + terracotta palette was dropped:* "warm cream background, high-contrast serif display, terracotta accent" is
+  the first AI-design cliché listed in `.claude/skills/frontend-design`. Don't drift back to it.
 - **Type:** one display face with character plus one readable text face, both OFL and bundled. **Not** Fredoka, Nunito,
-  Poppins, Inter or Montserrat (the faces AI tools default to). A human picks from a shortlist of three, seen on the real board.
+  Poppins, Inter or Montserrat (the faces AI tools default to), and not a high-contrast editorial serif. A human picks
+  from a shortlist of three, seen on the real board.
 - **Drawn by a human (SVG):** the cats (awake, curling, asleep), four building heights, the flower (open, wilted), the
   well and the wordmark. If AI helps with sketches, a human redraws them in one consistent hand.
 - **Reference board:** 5–10 images in `docs/references/` (prints, posters, picture books), for direction only, never to copy.

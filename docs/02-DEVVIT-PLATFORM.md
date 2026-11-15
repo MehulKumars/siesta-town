@@ -28,7 +28,7 @@ A normal web app with three parts, hosted entirely by Reddit:
 - **localStorage is wiped on every app version** (the iframe URL changes per version). Use Redis for anything that must survive an update.
 - Client-callable endpoints start with `/api/`. Platform callbacks (scheduler, triggers, menu, forms) use `/internal/`.
 
-**Setup:** Node 22.2.0+ → `npm create devvit@latest --template=<react|phaser|threejs>` (or pick a template at
+**Setup:** Node 24+ (template engines field) → `npm create devvit@latest --template=<react|phaser|threejs>` (or pick a template at
 developers.reddit.com/new) → follow the wizard (Reddit login) → `npm run dev` starts a **playtest** on a
 test subreddit (backend calls only work in playtest, not purely locally) → `npm run deploy` uploads a version.
 **Never `devvit publish` during the hackathon.**

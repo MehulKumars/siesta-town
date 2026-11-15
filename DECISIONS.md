@@ -31,3 +31,15 @@ Format: `YYYY-MM-DD · decision · why · alternatives considered · who`
 - 2026-11-15 · Journey.Start via an explicit startJourney() before any other call; the server ends the journey with the verified score · interaction()/progress() auto-start journeys · start on first placement implicitly · review
 - 2026-11-15 · Content bank Nov 17, 2026 → Dec 31, 2027 · v1 started Dec 1, so late-November dev testing would hit the fallback; a year costs nothing · Dec 1 → Jan 15 · review
 - 2026-11-15 · Bundle budgets: splash ≤ 50 KB gz, game ≤ 250 KB gz · 600 KB was loose for a grid puzzle in a feed · v1 budgets · review
+
+### Project setup, 2026-11-15
+- 2026-11-15 · Project created by cloning reddit/devvit-template-react (the same template `npm create devvit` uses) instead of running the interactive wizard · the wizard needs an interactive Reddit login; the clone gives the identical official structure · wizard · agent
+- 2026-11-15 · App name `siesta-town` (placeholder; checked for availability at first `devvit upload`) · the template ships `<% name %>` placeholders · — · agent
+- 2026-11-15 · Removed the template's `public/snoo.png` · Devvit Rules: no Snoo or Reddit trademarks · keep until art arrives · agent
+- 2026-11-15 · Node 24+ (template `engines` and `.nvmrc` 24.18.0), not 22.2+ as the kit said · the template's requirement wins · — · agent
+- 2026-11-15 · Unit tests use the template's `node --test` runner (`npm run test:unit`), not Vitest · already configured in the template and CI; one less dependency · Vitest · agent
+- 2026-11-15 · Server framework is Hono (from the template) · template default · Express · agent
+- 2026-11-15 · Installed Anthropic's `frontend-design` skill in `.claude/skills/`; skipped `webapp-testing` (needs Python, not installed) and use Node Playwright directly · design quality is a judging criterion · — · agent
+- 2026-11-15 · Palette changed from sand + terracotta to whitewash, blue ink, sun yellow and pink · frontend-design lists cream + serif + terracotta as the #1 AI-design cliché · keep v1 palette · agent
+- 2026-11-15 · No middle-dot meta strings or "→" in UI copy · both are listed AI-design tells · — · agent
+- 2026-11-15 · Prototype: selecting a time fades the cats that don't nap then; tapping a cat says when it naps · the nap badges alone were cryptic in screenshots · text labels on every cat · agent

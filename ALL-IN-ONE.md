@@ -36,7 +36,7 @@ ALL-IN-ONE.md             ← every doc in one file, for agents that take a sing
 ```
 
 ## Steps
-1. Install Node 22.2+, Git, Claude Code. Log in to Reddit in a browser.
+1. Install Node 24+, Git, Claude Code. Log in to Reddit in a browser.
 2. `npm create devvit@latest --template=react` (or `phaser`) → follow the wizard → `cd` into the project.
 3. Copy everything from this kit into the project root (keep the template's own README as `README.template.md`;
    the app needs its own README later).
@@ -152,7 +152,7 @@ with a bad idea, and don't silently ignore a good one.
   the docs win. Fix our file and log it in `DECISIONS.md`.
 - Start from an **official Devvit Web template** (`npm create devvit@latest`). Never hand-roll the
   build config if the template already provides it.
-- Node **22.2.0+** required.
+- Node **24+** required (the template pins 24.18.0 in `.nvmrc`; this machine runs 26). Also follow Reddit's template rules in `docs/DEVVIT-TEMPLATE-NOTES.md` (use `navigateTo`, `showToast`; no inline scripts in entry HTML; named exports; no type casts).
 
 ## 6. Where things are
 
@@ -178,7 +178,7 @@ with a bad idea, and don't silently ignore a good one.
 2. **Small vertical slices.** Get something running on Reddit (`npm run dev` playtest) early and
    keep it running. Never break the main branch's playtest.
 3. **The game engine is pure.** `src/shared/engine` has no DOM, no Devvit and no randomness without a seed.
-   Unit-test it heavily (Vitest). The solver and generator live here.
+   Unit-test it heavily with the template's runner (`npm run test:unit`: `node --test` on `src/**/*.test.ts`). The solver and generator live here.
 4. **Test what you build:** engine (unit tests), API (route tests with mocked Redis), and UI
    (Playwright screenshots at 375×667, 390×844 and 1280×800). Look at the screenshots yourself.
 5. **Commit often** with clear messages. Update `PROGRESS.md` at the end of every session. The git history
@@ -376,7 +376,7 @@ A normal web app with three parts, hosted entirely by Reddit:
 - **localStorage is wiped on every app version** (the iframe URL changes per version). Use Redis for anything that must survive an update.
 - Client-callable endpoints start with `/api/`. Platform callbacks (scheduler, triggers, menu, forms) use `/internal/`.
 
-**Setup:** Node 22.2.0+ → `npm create devvit@latest --template=<react|phaser|threejs>` (or pick a template at
+**Setup:** Node 24+ (template engines field) → `npm create devvit@latest --template=<react|phaser|threejs>` (or pick a template at
 developers.reddit.com/new) → follow the wizard (Reddit login) → `npm run dev` starts a **playtest** on a
 test subreddit (backend calls only work in playtest, not purely locally) → `npm run deploy` uploads a version.
 **Never `devvit publish` during the hackathon.**
@@ -807,7 +807,7 @@ The telemetry wrapper must no-op safely if Journeys is not yet allowlisted.
 
 ## 10. Testing strategy
 
-- **Engine:** Vitest unit and property tests (random boards: the solver's solutions always validate; the generator hits its
+- **Engine:** unit and property tests with `node --test` (the template's `npm run test:unit`) (random boards: the solver's solutions always validate; the generator hits its
   difficulty bands; town validation rejects illegal grids).
 - **Server:** route tests with an in-memory Redis fake (no lists or sets in the fake either, to match Devvit); the
   scheduler's idempotency test (run twice → one post, one sticky comment); streak tests from Reddit's list (no play → 0,
@@ -916,11 +916,12 @@ players all tied at par. Daily logic puzzles that thrive (LinkedIn's Queens, NYT
   "Harbour", "Market", "Steps"), combined by the seed. The Town Builder offers the same lists as a picker. No free text.
 
 ### A7. Screens
-1. **Splash (inline, taps only, fits the post).** Wordmark, `#n · weekday · date`, town name, a small static drawing of
-   today's town (from the puzzle, no solution), difficulty dots (1–7), my streak, "Town by u/…" on community days, and
-   one call to action: "Play today's town". A returning solved player sees "Napped in 1:42 · streak 7" and the button
-   becomes "See results". On an **old daily post**: "This was #12. Today's town is up →" (`navigateTo`) and a quieter
-   "Play #12 anyway". With challenge share data: "A friend napped this town in 1:42."
+1. **Splash (inline, taps only, fits the post).** Wordmark, the town name, "No. 14, Monday 14 December", a small static
+   drawing of today's town (from the puzzle, no solution), difficulty dots (1–7), my streak, "Town by u/…" on community
+   days, and one call to action: "Play today's town". A returning solved player sees "Napped in 1:42. Streak: 7 days." and
+   the button becomes "See results". On an **old daily post**: "This was No. 12." with a button "Go to today's town"
+   (`navigateTo`) and a quieter "Play No. 12 anyway". With challenge share data: "A friend napped this town in 1:42."
+   *(No middle-dot meta strings and no "→" on buttons: both are listed AI-design tells in `.claude/skills/frontend-design`.)*
 2. **First-time tutorial (expanded).** Three tiny interactive boards: (1) one cat, one building, morning only
    ("Drag the house so the cat is in its shadow"); (2) the time toggle, with a noon cat; (3) a flower that must stay lit.
    Under 40 seconds, skippable, at most 15 words per step. Never a wall of text.
@@ -944,8 +945,8 @@ players all tied at par. Daily logic puzzles that thrive (LinkedIn's Queens, NYT
   solving. Under 10 players: "You're one of the first N to nap this town" instead of percentages.
 - **Stats:** `stats:{d}` = solves, clean naps, time distribution buckets.
 - **Streaks:** Reddit's bitfield pattern (PLATFORM §3), keyed by the puzzle's date. Opt-in flair: "Siesta streak N".
-- **Share text** (spoiler-free; emoji are fine inside a comment):
-  `Siesta #14 · Little Harbour — 1:42 · clean nap · 🌅✓ ☀️✓ 🌇✓ · streak 7`
+- **Share text** (spoiler-free; emoji are fine inside a comment), two short lines:
+  `Siesta No. 14, Little Harbour: asleep in 1:42, no hints. Streak: 7 days.` / `🌅✓ ☀️✓ 🌇✓`
 - **Challenge a friend:** `showShareSheet({ text: "I put every cat in Little Harbour to sleep in 1:42. Your turn?",
   data: '{"d":"2026-12-14","t":102}' })`. The recipient's splash reads it with `getShareData()`. Show it only if `d`
   matches the post's date, and never show a name from share data (it can be faked).
@@ -970,15 +971,18 @@ players all tied at par. Daily logic puzzles that thrive (LinkedIn's Queens, NYT
 - A custom share image per daily post (`shareImageUrl`), if `media.upload` works with a bundled image.
 
 ### A10. Art and audio direction: "print-shop siesta" (a human signs this off in Phase 0–1)
-- **Look:** a two-to-three-ink print on warm paper, like a risograph poster of a small Mediterranean town. Flat shapes,
-  ink outlines, a fine paper grain (one small tiled texture, not a CSS filter).
-- **Shade is hatching.** Shadows are diagonal violet hatching over the sand, not just a darker fill. It reads instantly,
-  doesn't depend on colour (colour-blind safe by texture), and gives the game a look no other entry will have.
-  Sunlit tiles stay clean paper.
-- **Palette (spot inks):** paper sand `#F4E6CC`, ink `#2B2240`, terracotta `#C4553B`, shade violet `#6E62A0`,
-  sun `#F2B134`, flower pink `#E05A7A`. Shade and sun must also differ strongly in lightness.
+- **Look:** a riso-style print of a whitewashed town at noon: a sun-baked yellow board, white houses and cats drawn in
+  one blue ink, pink flowers. Flat shapes, ink outlines, optionally a fine grain (one small tiled texture, not a CSS filter).
+- **Shade is hatching.** Shadows are diagonal blue hatching over the yellow ground, not just a darker fill. It reads
+  instantly, doesn't depend on colour (colour-blind safe by texture and lightness), and gives the game a look no other
+  entry will have. Sunlit tiles stay clean yellow.
+- **Palette (candidate, used in the Phase 0 prototype):** whitewash sky `#E9EFF6`, blue ink `#1B2766`, shade blue
+  `#2F49A6`, sun yellow `#F3C94F`, deep sun `#E0A91F`, flower pink `#E8378A`, well water `#9CC6EA`, white `#FFFFFF`.
+  *v1's sand + terracotta palette was dropped:* "warm cream background, high-contrast serif display, terracotta accent" is
+  the first AI-design cliché listed in `.claude/skills/frontend-design`. Don't drift back to it.
 - **Type:** one display face with character plus one readable text face, both OFL and bundled. **Not** Fredoka, Nunito,
-  Poppins, Inter or Montserrat (the faces AI tools default to). A human picks from a shortlist of three, seen on the real board.
+  Poppins, Inter or Montserrat (the faces AI tools default to), and not a high-contrast editorial serif. A human picks
+  from a shortlist of three, seen on the real board.
 - **Drawn by a human (SVG):** the cats (awake, curling, asleep), four building heights, the flower (open, wilted), the
   well and the wordmark. If AI helps with sketches, a human redraws them in one consistent hand.
 - **Reference board:** 5–10 images in `docs/references/` (prints, posters, picture books), for direction only, never to copy.
@@ -1096,7 +1100,7 @@ Agents (Claude Code) do most of the implementation. Humans decide, play, judge f
 - **Go/no-go:** GO if at least 4 of 5 solve a Monday puzzle without help in under 2 minutes, at least 3 of 5 play on or
   ask for another, and at least 4 of 5 can explain the rule in one sentence afterwards. Otherwise spend one day on
   changes and retest. If it's still a no, switch to the strongest alternative in GAME-SPEC §C and redo Phase 0.
-- **In parallel:** install Node 22.2+, the Devvit CLI and Claude Code; create the app from the official template;
+- **In parallel:** install Node 24+, the Devvit CLI and Claude Code; create the app from the official template;
   **`git init` and commit on day one** (authorship evidence); create a **dev subreddit** (private) and a **demo
   subreddit** (public, under 200 members, a neutral name tied to the game). Art: start `docs/references/`.
 - **Ask now** (Devvit Discord / r/Devvit; email the hackathon manager for #3):
@@ -1255,6 +1259,10 @@ app a unique identity, make it accessible, and make sure you're thinking of your
       the game!", no "Great job!", no exclamation-mark spam.
 - [ ] Copy has a voice that fits the theme (Siesta: warm, sleepy, gently funny).
 - [ ] Restraint: no feature on screen that a judge would have to be told about. Fewer, better things.
+- [ ] None of the template tells listed in `.claude/skills/frontend-design`: cream background + editorial serif +
+      terracotta accent; tracked-out ALL-CAPS eyebrow labels; meta strings joined with middle dots ("A · B · C");
+      a "→" appended to button text; identical rounded cards with the same soft grey shadow; fade-and-slide-up on every
+      element. One orchestrated moment (the siesta) instead of scattered effects.
 
 ## Reliability
 - [ ] No console errors. Works logged-out (full play, a gentle note that progress isn't saved, login offered after solving).
@@ -1333,7 +1341,7 @@ Requirements come from `docs/sources/devpost-rules.md` §4. Re-read that file on
 | Tool | Why |
 |---|---|
 | **Claude Code** (terminal; VS Code extension optional) | The main build agent. Run it in the repo root so it loads CLAUDE.md. Use a fresh session for reviews. |
-| **Node.js 22.2+** via nvm (nvm-windows on Windows) | Devvit requirement |
+| **Node.js 24+** via nvm (nvm-windows on Windows) | Devvit requirement |
 | **Devvit CLI** + an official **Devvit Web template** (`npm create devvit@latest --template=react` or `phaser`) | build, playtest (`npm run dev`), upload (`npm run deploy`) |
 | **Git + a private GitHub repo** (+ `gh`) | history, branches, one branch per agent task. Start on day one: the history is our authorship evidence |
 | **Reddit accounts** for each teammate, plus the **Reddit app on iOS and Android** | real-device testing is mandatory |
@@ -1348,7 +1356,7 @@ Requirements come from `docs/sources/devpost-rules.md` §4. Re-read that file on
 
 ## In the codebase
 TypeScript (strict) · Vite (from the template) · **React** for the expanded game (or **Phaser 4** if the game needs
-sprite animation) · plain TS (or Preact) for the inline splash to stay under 50 KB · Vitest (engine tests) · Playwright
+sprite animation) · plain TS (or Preact) for the inline splash to stay under 50 KB · `node --test` (engine tests, set up by the template) · Playwright
 (visual tests, including a "page must not scroll" check) · Lighthouse in Chrome DevTools (splash score above 80) · ESLint + Prettier.
 Avoid Unity/Godot/GameMaker for this game: bigger bundles and slower first load in the feed, with no benefit for a grid puzzle.
 Phase 0's `prototype/siesta.html` is plain HTML + JS with no build step, so anyone can open it on a phone.
@@ -1439,7 +1447,7 @@ the three biggest feel problems to solve in the real build.
 
 Read `PROGRESS.md`, `DECISIONS.md`, `docs/03-ARCHITECTURE.md` and `docs/04-GAME-SPEC.md` §A. Write a Phase 1 task list in
 `PROGRESS.md` (ordered tasks, files touched, tests, done-check), then build it:
-1. A pure engine in `src/shared/engine` with Vitest tests: rules (shadows, evaluation), seeded RNG, solver (counts
+1. A pure engine in `src/shared/engine` with unit tests (`npm run test:unit`): rules (shadows, evaluation), seeded RNG, solver (counts
    solutions, stops at limit+1), generator, difficulty, scoring (time + hints), town validation.
 2. `scripts/generate-puzzles.ts` and `scripts/validate-bank.ts`; generate the bank from 2026-11-17 to 2027-12-31 and
    validate every date.

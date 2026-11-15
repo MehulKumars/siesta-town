@@ -88,7 +88,7 @@ with a bad idea, and don't silently ignore a good one.
   the docs win. Fix our file and log it in `DECISIONS.md`.
 - Start from an **official Devvit Web template** (`npm create devvit@latest`). Never hand-roll the
   build config if the template already provides it.
-- Node **22.2.0+** required.
+- Node **24+** required (the template pins 24.18.0 in `.nvmrc`; this machine runs 26). Also follow Reddit's template rules in `docs/DEVVIT-TEMPLATE-NOTES.md` (use `navigateTo`, `showToast`; no inline scripts in entry HTML; named exports; no type casts).
 
 ## 6. Where things are
 
@@ -114,7 +114,7 @@ with a bad idea, and don't silently ignore a good one.
 2. **Small vertical slices.** Get something running on Reddit (`npm run dev` playtest) early and
    keep it running. Never break the main branch's playtest.
 3. **The game engine is pure.** `src/shared/engine` has no DOM, no Devvit and no randomness without a seed.
-   Unit-test it heavily (Vitest). The solver and generator live here.
+   Unit-test it heavily with the template's runner (`npm run test:unit`: `node --test` on `src/**/*.test.ts`). The solver and generator live here.
 4. **Test what you build:** engine (unit tests), API (route tests with mocked Redis), and UI
    (Playwright screenshots at 375×667, 390×844 and 1280×800). Look at the screenshots yourself.
 5. **Commit often** with clear messages. Update `PROGRESS.md` at the end of every session. The git history

@@ -17,7 +17,7 @@ the three biggest feel problems to solve in the real build.
 
 Read `PROGRESS.md`, `DECISIONS.md`, `docs/03-ARCHITECTURE.md` and `docs/04-GAME-SPEC.md` §A. Write a Phase 1 task list in
 `PROGRESS.md` (ordered tasks, files touched, tests, done-check), then build it:
-1. A pure engine in `src/shared/engine` with Vitest tests: rules (shadows, evaluation), seeded RNG, solver (counts
+1. A pure engine in `src/shared/engine` with unit tests (`npm run test:unit`): rules (shadows, evaluation), seeded RNG, solver (counts
    solutions, stops at limit+1), generator, difficulty, scoring (time + hints), town validation.
 2. `scripts/generate-puzzles.ts` and `scripts/validate-bank.ts`; generate the bank from 2026-11-17 to 2027-12-31 and
    validate every date.

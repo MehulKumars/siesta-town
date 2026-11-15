@@ -31,7 +31,7 @@ Agents (Claude Code) do most of the implementation. Humans decide, play, judge f
 - **Go/no-go:** GO if at least 4 of 5 solve a Monday puzzle without help in under 2 minutes, at least 3 of 5 play on or
   ask for another, and at least 4 of 5 can explain the rule in one sentence afterwards. Otherwise spend one day on
   changes and retest. If it's still a no, switch to the strongest alternative in GAME-SPEC §C and redo Phase 0.
-- **In parallel:** install Node 22.2+, the Devvit CLI and Claude Code; create the app from the official template;
+- **In parallel:** install Node 24+, the Devvit CLI and Claude Code; create the app from the official template;
   **`git init` and commit on day one** (authorship evidence); create a **dev subreddit** (private) and a **demo
   subreddit** (public, under 200 members, a neutral name tied to the game). Art: start `docs/references/`.
 - **Ask now** (Devvit Discord / r/Devvit; email the hackathon manager for #3):

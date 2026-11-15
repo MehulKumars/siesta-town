@@ -1,0 +1,1095 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Siesta (prototype)</title>
+<style>
+  :root {
+    --sky: #e9eff6;
+    --ink: #1b2766;
+    --ink-soft: #4a5590;
+    --sun: #f3c94f;
+    --sun-deep: #e0a91f;
+    --shade: #2f49a6;
+    --white: #ffffff;
+    --pink: #e8378a;
+    --water: #9cc6ea;
+    --ok: #1f7a4d;
+    --bad: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--sky);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
+  .app {
+    height: 100dvh;
+    max-width: 460px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: max(8px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom));
+  }
+  header { flex: none; display: flex; align-items: center; justify-content: space-between; height: 44px; }
+  .wordmark { font-weight: 800; font-size: 24px; letter-spacing: -0.03em; }
+  .header-actions { display: flex; }
+  .icon-btn { width: 44px; height: 44px; border: 0; background: transparent; border-radius: 12px; display: grid; place-items: center; }
+  .icon-btn svg { width: 24px; height: 24px; }
+  .titles { flex: none; min-height: 46px; }
+  .titles h1 { margin: 0; font-size: 20px; font-weight: 750; line-height: 1.2; }
+  .titles p { margin: 2px 0 0; font-size: 15px; line-height: 1.35; color: var(--ink-soft); }
+  .toggle {
+    flex: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px;
+    background: var(--white); border-radius: 14px; box-shadow: inset 0 0 0 2px var(--ink);
+  }
+  .toggle button {
+    height: 44px; border: 0; border-radius: 10px; background: transparent; font-weight: 650; font-size: 15px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .toggle button svg { width: 20px; height: 20px; flex: none; }
+  .toggle button[aria-pressed="true"] { background: var(--ink); color: var(--white); }
+  .toggle button:disabled { opacity: 0.3; cursor: default; }
+  .spacer { flex: 1 1 0; min-height: 0; }
+  .board-wrap { flex: none; height: var(--board, 300px); position: relative; display: grid; place-items: center; }
+  #board { width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .status { flex: none; height: 36px; display: flex; align-items: center; justify-content: space-between; font-weight: 650; font-size: 15px; }
+  .suns { display: flex; gap: 8px; }
+  .sun-check { display: flex; align-items: center; gap: 2px; }
+  .sun-check svg { width: 22px; height: 22px; }
+  .counts { display: flex; gap: 14px; align-items: center; }
+  .count { display: flex; align-items: center; gap: 4px; }
+  .count svg { width: 22px; height: 22px; }
+  .tray-row { flex: none; display: flex; gap: 8px; align-items: center; height: 84px; }
+  .tray { flex: 1; display: flex; gap: 8px; justify-content: center; height: 100%; align-items: center; touch-action: none; }
+  .slot {
+    width: min(68px, calc((100% - 24px) / 4)); height: 76px; padding: 0; border: 0; border-radius: 14px;
+    background: var(--white); box-shadow: inset 0 0 0 2px var(--ink); display: grid; place-items: center;
+    touch-action: none; transition: transform 0.12s;
+  }
+  .slot.empty { background: transparent; box-shadow: inset 0 0 0 2px rgba(27, 39, 102, 0.22); }
+  .slot.selected { transform: translateY(-6px); box-shadow: inset 0 0 0 3px var(--pink); }
+  .slot svg { width: 56px; height: 56px; pointer-events: none; }
+  .ghost { position: fixed; left: 0; top: 0; width: 64px; height: 64px; pointer-events: none; z-index: 20; display: none; }
+  .toast {
+    position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); background: var(--ink); color: var(--white);
+    padding: 8px 12px; border-radius: 10px; font-size: 14px; white-space: nowrap; opacity: 0; transition: opacity 0.2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  /* board */
+  .cell { fill: var(--sun); }
+  .grid-line { stroke: var(--ink); stroke-opacity: 0.16; stroke-width: 2; }
+  .frame { fill: none; stroke: var(--ink); stroke-width: 6; }
+  .shadow { fill: url(#hatch); opacity: 0; transition: opacity 200ms ease-out; }
+  .shadow.on { opacity: 1; }
+  .preview-shadow { fill: url(#hatch-preview); }
+  .target { fill: none; stroke: var(--ink); stroke-width: 5; stroke-dasharray: 12 9; opacity: 0.55; }
+  .sun-marker { transition: transform 380ms ease-in-out; }
+  .cat { transition: opacity 0.25s; }
+  .cat.off-duty { opacity: 0.4; }
+  .cat .eyes-closed, .cat .zzz { display: none; }
+  .cat.asleep .eyes-open { display: none; }
+  .cat.asleep .eyes-closed, .cat.asleep .zzz { display: inline; }
+  .flower .petals { transition: opacity 0.3s; }
+  .flower.wilted .petals { opacity: 0.35; }
+  .flower.wilted .droop { display: inline; }
+  .flower .droop { display: none; }
+  .building.selected .body { stroke: var(--pink); }
+  .bloom { animation: bloom 0.5s ease-out; transform-box: fill-box; transform-origin: center; }
+  @keyframes bloom { 50% { transform: scale(1.25); } }
+  .shake { animation: shake 0.3s; }
+  @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+  /* sheets */
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; max-width: 460px; margin: 0 auto; z-index: 30;
+    background: var(--white); border-radius: 20px 20px 0 0; box-shadow: 0 -3px 0 var(--ink);
+    padding: 22px 20px max(20px, env(safe-area-inset-bottom));
+    transform: translateY(calc(100% + 16px)); visibility: hidden; transition: transform 0.35s ease-out, visibility 0s 0.35s;
+  }
+  .sheet.open { transform: none; visibility: visible; transition: transform 0.35s ease-out; }
+  .sheet h2 { margin: 0; font-size: 22px; line-height: 1.25; }
+  .sheet p { margin: 8px 0 0; font-size: 16px; line-height: 1.45; color: var(--ink-soft); }
+  .stats { display: flex; gap: 28px; margin: 14px 0 18px; font-size: 14px; color: var(--ink-soft); }
+  .stats strong { display: block; font-size: 26px; color: var(--ink); }
+  .primary { width: 100%; height: 52px; margin-top: 16px; border: 0; border-radius: 14px; background: var(--ink); color: var(--white); font-weight: 700; font-size: 17px; }
+  .secondary { width: 100%; height: 48px; margin-top: 8px; border: 0; border-radius: 14px; background: transparent; box-shadow: inset 0 0 0 2px var(--ink); font-weight: 650; font-size: 16px; }
+  .scrim { position: fixed; inset: 0; background: rgba(27, 39, 102, 0.35); z-index: 25; display: none; }
+  .scrim.open { display: block; }
+  .host-panel { max-height: 86dvh; overflow: auto; }
+  .host-panel h3 { margin: 18px 0 8px; font-size: 15px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { min-height: 40px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--sky); font-size: 14px; font-weight: 600; }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--white); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td, th { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--sky); }
+  @media (prefers-reduced-motion: reduce) {
+    .shadow, .sun-marker, .sheet, .flower .petals, .slot { transition: none !important; }
+    .bloom, .shake { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="wordmark">Siesta</div>
+    <div class="header-actions">
+      <button class="icon-btn" id="help-btn" aria-label="How to play">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.8-2.5 2.2-2.5 3.8"/><circle cx="12" cy="17.2" r="0.6" fill="currentColor"/></svg>
+      </button>
+      <button class="icon-btn" id="mute-btn" aria-label="Sound">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path id="mute-waves" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path id="mute-cross" d="M16 9.5l5 5M21 9.5l-5 5" style="display:none"/></svg>
+      </button>
+      <button class="icon-btn" id="host-btn" aria-label="Playtest host panel">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+      </button>
+    </div>
+  </header>
+  <div class="titles"><h1 id="title"></h1><p id="subtitle"></p></div>
+  <div class="spacer"></div>
+  <div class="toggle" id="toggle" role="group" aria-label="Time of day"></div>
+  <div class="board-wrap">
+    <svg id="board" role="img" aria-label="Town board"></svg>
+    <div class="toast" id="toast"></div>
+  </div>
+  <div class="status">
+    <div class="suns" id="suns" aria-label="Times of day solved"></div>
+    <div class="counts" id="counts"></div>
+  </div>
+  <div class="tray-row">
+    <div class="tray" id="tray" aria-label="Houses to place"></div>
+    <button class="icon-btn" id="reset-btn" aria-label="Put all houses back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.8h3.8"/></svg>
+    </button>
+  </div>
+</div>
+<div class="ghost" id="ghost"></div>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="result-sheet" role="dialog" aria-modal="true"></div>
+<div class="sheet" id="help-sheet" role="dialog" aria-modal="true">
+  <h2>How to play</h2>
+  <p>Drag each house onto empty ground. Every cat must nap in shade at its time: tap a cat to see when. Flowers need sun all day.</p>
+  <p id="help-shadows"></p>
+  <button class="primary" data-close>Back to the town</button>
+</div>
+<div class="sheet host-panel" id="host-sheet" role="dialog" aria-modal="true"></div>
+
+<script>
+// Siesta prototype engine. Plain JS, no imports, no DOM.
+// Used by generate.mjs (Node) and inlined into siesta.html by build.mjs.
+// Throwaway: the real engine is rewritten in TypeScript in src/shared/engine (Phase 1).
+
+const TIMES = ['am', 'noon', 'pm'];
+const GROUND = 0;
+const CAT = 1;
+const FLOWER = 2;
+const WELL = 3;
+
+// Cells a building of height h at (r, c) shades at one time of day.
+// Morning sun in the east: h tiles west. Evening sun in the west: h tiles east.
+// Noon sun high in the south: 1 tile north ('one') or ceil(h/2) tiles north ('half').
+function castShadow(size, cell, h, time, noonRule) {
+  const r = Math.floor(cell / size);
+  const c = cell % size;
+  const out = [];
+  if (time === 'am') {
+    for (let k = 1; k <= h && c - k >= 0; k++) out.push(r * size + c - k);
+  } else if (time === 'pm') {
+    for (let k = 1; k <= h && c + k < size; k++) out.push(r * size + c + k);
+  } else {
+    const reach = noonRule === 'half' ? Math.ceil(h / 2) : 1;
+    for (let k = 1; k <= reach && r - k >= 0; k++) out.push((r - k) * size + c);
+  }
+  return out;
+}
+
+// placements[i] = cell index of building i (heights[i]) or -1 if it's still in the tray.
+function shadeByTime(puzzle, placements, noonRule) {
+  const shade = { am: new Set(), noon: new Set(), pm: new Set() };
+  placements.forEach((cell, i) => {
+    if (cell < 0) return;
+    for (const t of TIMES) {
+      for (const s of castShadow(puzzle.size, cell, puzzle.heights[i], t, noonRule)) shade[t].add(s);
+    }
+  });
+  return shade;
+}
+
+function evaluate(puzzle, placements, noonRule) {
+  const shade = shadeByTime(puzzle, placements, noonRule);
+  const cats = [];
+  const flowers = [];
+  const timeOk = { am: true, noon: true, pm: true };
+  puzzle.cells.forEach((kind, cell) => {
+    if (kind === CAT) {
+      const nap = puzzle.naps[cell];
+      const asleep = shade[nap].has(cell);
+      cats.push({ cell, nap, asleep });
+      if (!asleep) timeOk[nap] = false;
+    } else if (kind === FLOWER) {
+      const shadedAt = TIMES.filter((t) => shade[t].has(cell));
+      flowers.push({ cell, lit: shadedAt.length === 0, shadedAt });
+      for (const t of shadedAt) timeOk[t] = false;
+    }
+  });
+  const allPlaced = placements.every((p) => p >= 0);
+  const asleepCount = cats.filter((c) => c.asleep).length;
+  const litCount = flowers.filter((f) => f.lit).length;
+  const solved = allPlaced && asleepCount === cats.length && litCount === flowers.length;
+  return { shade, cats, flowers, timeOk, allPlaced, asleepCount, litCount, solved };
+}
+
+function canBuildOn(puzzle, cell) {
+  return puzzle.cells[cell] === GROUND;
+}
+
+// Backtracking solver. Buildings in the order given (tallest first works best).
+// Returns up to `keep` solutions and stops counting at limit + 1.
+function solve(puzzle, noonRule, limit = 1, keep = 8) {
+  const { size, cells, heights, naps } = puzzle;
+  const n = size * size;
+  const ground = [];
+  for (let i = 0; i < n; i++) if (cells[i] === GROUND) ground.push(i);
+  // Precompute shade lists and whether a placement shades a flower.
+  const shadeOf = heights.map((h) => {
+    const byCell = new Map();
+    for (const cell of ground) {
+      const all = TIMES.map((t) => castShadow(size, cell, h, t, noonRule));
+      const killsFlower = all.some((list) => list.some((s) => cells[s] === FLOWER));
+      byCell.set(cell, { all, killsFlower });
+    }
+    return byCell;
+  });
+  const catCells = [];
+  for (let i = 0; i < n; i++) if (cells[i] === CAT) catCells.push(i);
+
+  const solutions = [];
+  let count = 0;
+  let nodes = 0;
+  const used = new Set();
+  const current = [];
+
+  function catsOk() {
+    const shade = { am: new Set(), noon: new Set(), pm: new Set() };
+    current.forEach((cell, i) => {
+      const { all } = shadeOf[i].get(cell);
+      TIMES.forEach((t, ti) => all[ti].forEach((s) => shade[t].add(s)));
+    });
+    return catCells.every((c) => shade[naps[c]].has(c));
+  }
+
+  function place(i) {
+    if (count > limit) return;
+    if (i === heights.length) {
+      if (catsOk()) {
+        count++;
+        if (solutions.length < keep) solutions.push([...current]);
+      }
+      return;
+    }
+    for (const cell of ground) {
+      if (used.has(cell)) continue;
+      nodes++;
+      if (shadeOf[i].get(cell).killsFlower) continue;
+      used.add(cell);
+      current.push(cell);
+      place(i + 1);
+      current.pop();
+      used.delete(cell);
+      if (count > limit) return;
+    }
+  }
+  place(0);
+  return { count, solutions, nodes };
+}
+
+// Seeded PRNG (mulberry32) from a string.
+function seededRandom(seed) {
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  let a = h >>> 0;
+  return function next() {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const PUZZLES = {"one":[{"id":"lesson-1","kind":"lesson","title":"Lesson 1 of 3","size":4,"cells":[0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0],"naps":{"4":"am"},"heights":[1],"lockTime":"am","note":"The sun rises on the right. Drag the house so the cat naps in its shadow.","solution":[5],"solutions":1},{"id":"lesson-2","kind":"lesson","title":"Lesson 2 of 3","size":4,"cells":[0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"naps":{"1":"noon"},"heights":[1],"note":"This cat naps at noon. Tap Noon to see where shadows fall.","solution":[5],"solutions":1},{"id":"lesson-3","kind":"lesson","title":"Lesson 3 of 3","size":4,"cells":[0,2,0,0,0,0,0,1,0,0,0,0,0,0,0,0],"naps":{"7":"pm"},"heights":[2],"note":"Flowers need sun all day. Keep this one out of every shadow.","solution":[6],"solutions":1},{"id":"town-1","kind":"town","title":"Old Gardens","day":"Monday","size":5,"cells":[0,1,0,2,0,0,0,0,0,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0,0],"naps":{"1":"pm","15":"noon"},"heights":[2,1],"solution":[0,20],"solutions":2,"nodes":321,"attempts":6},{"id":"town-2","kind":"town","title":"Quiet Harbour","day":"Monday","size":5,"cells":[0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0,0,1,0],"naps":{"3":"am","23":"pm"},"heights":[2,1],"solution":[21,4],"solutions":1,"nodes":361,"attempts":3},{"id":"town-3","kind":"town","title":"Seaside Orchard","day":"Tuesday","size":5,"cells":[2,0,1,0,0,0,1,0,0,2,0,0,0,2,0,0,2,0,1,0,3,0,0,2,0],"naps":{"2":"am","6":"noon","18":"am"},"heights":[3,2,1],"solution":[4,19,11],"solutions":1,"nodes":73,"attempts":2},{"id":"town-4","kind":"town","title":"Upper Lanes","day":"Tuesday","size":5,"cells":[0,1,2,0,0,0,1,1,0,0,0,0,0,0,0,2,2,0,0,0,0,3,0,0,0],"naps":{"1":"pm","6":"noon","7":"noon"},"heights":[3,2,1],"solution":[12,11,0],"solutions":2,"nodes":2141,"attempts":14},{"id":"town-5","kind":"town","title":"Sleepy Market","day":"Wednesday","size":6,"cells":[0,3,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,1,0,0,2,0,0,0,1,2,1,0,2,0,0,0,0,0,2,0],"naps":{"17":"noon","24":"noon","26":"noon"},"heights":[3,2,1],"solution":[30,23,32],"solutions":1,"nodes":4915,"attempts":13},{"id":"town-6","kind":"town","title":"Hilltop Square","day":"Wednesday","size":6,"cells":[0,0,0,3,0,0,0,0,1,2,0,0,0,1,2,2,0,2,0,0,1,0,0,0,0,2,2,0,0,0,0,0,0,0,0,0],"naps":{"8":"pm","13":"pm","20":"am"},"heights":[3,2,1],"solution":[22,6,12],"solutions":1,"nodes":4070,"attempts":4},{"id":"town-7","kind":"town","title":"Dusty Quarter","day":"Thursday","size":6,"cells":[2,1,0,1,1,0,0,0,0,0,2,0,0,0,0,1,0,0,0,2,0,0,0,0,0,3,2,0,2,0,0,0,0,0,0,0],"naps":{"1":"noon","3":"am","4":"am","15":"noon"},"heights":[3,2,1],"solution":[5,7,21],"solutions":1,"nodes":2916,"attempts":3},{"id":"town-8","kind":"town","title":"Little Steps","day":"Friday","size":6,"cells":[0,1,0,0,2,0,2,0,0,1,2,2,0,3,0,1,0,0,2,0,0,0,0,0,0,0,0,1,2,0,0,0,2,3,0,0],"naps":{"1":"pm","9":"pm","15":"pm","27":"pm"},"heights":[4,3,2,1],"solution":[14,0,25,8],"solutions":1,"nodes":793,"attempts":164},{"id":"town-9","kind":"town","title":"Lower Cove","day":"Saturday","size":7,"cells":[0,2,0,0,1,0,0,0,0,2,1,3,0,0,0,1,0,0,0,2,0,0,0,0,0,0,2,0,2,0,0,0,0,0,0,0,0,1,0,2,0,0,0,1,0,0,0,2,3],"naps":{"4":"am","10":"noon","15":"noon","37":"noon","43":"am"},"heights":[4,3,2,1],"solution":[6,22,44,17],"solutions":1,"nodes":16885,"attempts":58}],"half":[{"id":"lesson-1","kind":"lesson","title":"Lesson 1 of 3","size":4,"cells":[0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0],"naps":{"4":"am"},"heights":[1],"lockTime":"am","note":"The sun rises on the right. Drag the house so the cat naps in its shadow.","solution":[5],"solutions":1},{"id":"lesson-2","kind":"lesson","title":"Lesson 2 of 3","size":4,"cells":[0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"naps":{"1":"noon"},"heights":[1],"note":"This cat naps at noon. Tap Noon to see where shadows fall.","solution":[5],"solutions":1},{"id":"lesson-3","kind":"lesson","title":"Lesson 3 of 3","size":4,"cells":[0,2,0,0,0,0,0,1,0,0,0,0,0,0,0,0],"naps":{"7":"pm"},"heights":[2],"note":"Flowers need sun all day. Keep this one out of every shadow.","solution":[6],"solutions":1},{"id":"town-1","kind":"town","title":"Old Gardens","day":"Monday","size":5,"cells":[0,1,0,2,0,0,0,0,0,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0,0],"naps":{"1":"pm","15":"noon"},"heights":[2,1],"solution":[0,20],"solutions":2,"nodes":321,"attempts":6},{"id":"town-2","kind":"town","title":"Quiet Harbour","day":"Monday","size":5,"cells":[0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0,0,1,0],"naps":{"3":"am","23":"pm"},"heights":[2,1],"solution":[21,4],"solutions":1,"nodes":361,"attempts":3},{"id":"town-3","kind":"town","title":"Seaside Orchard","day":"Tuesday","size":5,"cells":[2,0,1,0,0,0,1,0,0,2,0,0,0,2,0,2,0,0,1,0,3,0,0,2,0],"naps":{"2":"am","6":"noon","18":"am"},"heights":[3,2,1],"solution":[4,19,11],"solutions":1,"nodes":73,"attempts":2},{"id":"town-4","kind":"town","title":"Upper Lanes","day":"Tuesday","size":5,"cells":[0,2,0,0,0,0,0,1,3,0,1,0,0,2,0,0,2,1,0,0,0,0,0,0,0],"naps":{"7":"pm","10":"am","17":"noon"},"heights":[3,2,1],"solution":[22,5,11],"solutions":2,"nodes":663,"attempts":1},{"id":"town-5","kind":"town","title":"Sleepy Market","day":"Wednesday","size":6,"cells":[2,0,0,0,0,0,0,2,0,0,0,0,0,1,0,3,2,2,0,1,0,0,2,0,0,0,1,2,0,0,0,0,0,0,0,0],"naps":{"13":"am","19":"pm","26":"pm"},"heights":[3,2,1],"solution":[18,24,14],"solutions":1,"nodes":2530,"attempts":4},{"id":"town-6","kind":"town","title":"Hilltop Square","day":"Wednesday","size":6,"cells":[0,2,0,1,0,0,0,0,0,2,0,0,0,3,2,0,0,1,0,2,1,0,0,0,0,0,0,0,0,2,0,0,0,0,2,0],"naps":{"3":"am","17":"pm","20":"noon"},"heights":[3,2,1],"solution":[5,26,16],"solutions":1,"nodes":894,"attempts":6},{"id":"town-7","kind":"town","title":"Dusty Quarter","day":"Thursday","size":6,"cells":[0,2,1,0,0,1,0,1,0,0,2,3,2,1,0,0,0,0,0,2,2,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0],"naps":{"2":"noon","5":"noon","7":"am","13":"am"},"heights":[3,2,1],"solution":[17,15,8],"solutions":1,"nodes":2125,"attempts":1},{"id":"town-8","kind":"town","title":"Little Steps","day":"Friday","size":6,"cells":[2,0,0,3,2,0,0,0,0,3,1,0,0,0,1,0,0,2,0,1,0,2,1,0,0,0,2,0,0,0,0,0,0,2,0,2],"naps":{"10":"am","14":"pm","19":"pm","22":"noon"},"heights":[4,3,2,1],"solution":[11,13,18,28],"solutions":1,"nodes":1358,"attempts":93},{"id":"town-9","kind":"town","title":"Lower Cove","day":"Saturday","size":7,"cells":[0,2,0,0,0,0,0,0,0,0,1,3,1,2,0,0,0,0,2,2,0,0,0,0,0,0,0,1,0,2,0,0,0,0,0,0,1,0,1,0,2,0,0,0,0,0,3,2,0],"naps":{"10":"pm","12":"pm","27":"noon","36":"noon","38":"noon"},"heights":[4,3,2,1],"solution":[34,9,43,45],"solutions":1,"nodes":57464,"attempts":32}]};
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+const CELL = 100;
+const MARGIN = 40;
+const TIME_LABEL = { am: 'Morning', noon: 'Noon', pm: 'Evening' };
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const store = {
+  get(key, fallback) {
+    try { const v = localStorage.getItem('siesta-proto:' + key); return v == null ? fallback : JSON.parse(v); } catch { return fallback; }
+  },
+  set(key, value) { try { localStorage.setItem('siesta-proto:' + key, JSON.stringify(value)); } catch { /* private mode */ } },
+};
+
+const state = {
+  rule: store.get('rule', 'one'),
+  index: store.get('index', 0),
+  player: store.get('player', 1),
+  muted: store.get('muted', false),
+  placements: [],
+  time: 'am',
+  selected: null,
+  drag: null,
+  solving: false,
+  attempt: null,
+};
+
+const $ = (id) => document.getElementById(id);
+const svg = $('board');
+let layers = {};
+let catEls = new Map();
+let flowerEls = new Map();
+
+function puzzles() { return PUZZLES[state.rule]; }
+function current() { return puzzles()[state.index]; }
+
+function el(name, attrs = {}, parent) {
+  const node = document.createElementNS(SVGNS, name);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (parent) parent.appendChild(node);
+  return node;
+}
+function cellXY(cell) {
+  const size = current().size;
+  return { x: (cell % size) * CELL, y: Math.floor(cell / size) * CELL };
+}
+
+// ---------- drawings ----------
+function sunBadge(parent, time, x, y, w, h) {
+  const g = el('g', { transform: `translate(${x} ${y})` }, parent);
+  el('rect', { width: w, height: h, rx: 6, fill: '#fff', stroke: 'var(--ink)', 'stroke-width': 3 }, g);
+  const pos = { am: [w - 7, h / 2], noon: [w / 2, h - 7], pm: [7, h / 2] }[time];
+  el('circle', { cx: pos[0], cy: pos[1], r: 5, fill: 'var(--sun-deep)', stroke: 'var(--ink)', 'stroke-width': 2 }, g);
+  return g;
+}
+function sunIcon(time, size = 20) {
+  // A small square "board" with the sun on the edge it shines from.
+  const pos = { am: [17, 10], noon: [10, 17], pm: [3, 10] }[time];
+  return `<svg viewBox="0 0 20 20" width="${size}" height="${size}" aria-hidden="true"><rect x="2.5" y="2.5" width="15" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="${pos[0]}" cy="${pos[1]}" r="3.6" fill="#e0a91f" stroke="currentColor" stroke-width="1.6"/></svg>`;
+}
+function drawBuilding(parent, h, cls = 'building') {
+  const g = el('g', { class: cls }, parent);
+  el('polygon', { points: '12,38 50,12 88,38', fill: 'var(--shade)', stroke: 'var(--ink)', 'stroke-width': 5, 'stroke-linejoin': 'round' }, g);
+  el('rect', { class: 'body', x: 18, y: 34, width: 64, height: 54, rx: 7, fill: '#fff', stroke: 'var(--ink)', 'stroke-width': 5 }, g);
+  const t = el('text', { x: 50, y: 75, 'text-anchor': 'middle', 'font-size': 34, 'font-weight': 800, fill: 'var(--ink)', 'font-family': 'system-ui, sans-serif' }, g);
+  t.textContent = h;
+  return g;
+}
+function buildingSvgString(h) {
+  return `<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="12,38 50,12 88,38" fill="#2f49a6" stroke="#1b2766" stroke-width="5" stroke-linejoin="round"/><rect x="18" y="34" width="64" height="54" rx="7" fill="#fff" stroke="#1b2766" stroke-width="5"/><text x="50" y="75" text-anchor="middle" font-size="34" font-weight="800" fill="#1b2766" font-family="system-ui, sans-serif">${h}</text></svg>`;
+}
+function drawCat(parent, cell, nap) {
+  const { x, y } = cellXY(cell);
+  const g = el('g', { class: 'cat', transform: `translate(${x} ${y})` }, parent);
+  el('polygon', { points: '28,44 31,18 47,33', fill: '#fff', stroke: 'var(--ink)', 'stroke-width': 5, 'stroke-linejoin': 'round' }, g);
+  el('polygon', { points: '72,44 69,18 53,33', fill: '#fff', stroke: 'var(--ink)', 'stroke-width': 5, 'stroke-linejoin': 'round' }, g);
+  el('ellipse', { cx: 50, cy: 52, rx: 27, ry: 24, fill: '#fff', stroke: 'var(--ink)', 'stroke-width': 5 }, g);
+  const open = el('g', { class: 'eyes-open' }, g);
+  el('circle', { cx: 40, cy: 50, r: 4, fill: 'var(--ink)' }, open);
+  el('circle', { cx: 60, cy: 50, r: 4, fill: 'var(--ink)' }, open);
+  const closed = el('g', { class: 'eyes-closed', fill: 'none', stroke: 'var(--ink)', 'stroke-width': 4, 'stroke-linecap': 'round' }, g);
+  el('path', { d: 'M34 50 q6 5 12 0' }, closed);
+  el('path', { d: 'M54 50 q6 5 12 0' }, closed);
+  el('path', { d: 'M46 59 h8 l-4 4 z', fill: 'var(--pink)' }, g);
+  const z = el('text', { class: 'zzz', x: 80, y: 28, 'font-size': 24, 'font-weight': 800, fill: 'var(--ink)', 'font-family': 'system-ui, sans-serif' }, g);
+  z.textContent = 'z';
+  sunBadge(g, nap, 58, 70, 34, 24);
+  return g;
+}
+function drawFlower(parent, cell) {
+  const { x, y } = cellXY(cell);
+  const g = el('g', { class: 'flower', transform: `translate(${x} ${y})` }, parent);
+  const petals = el('g', { class: 'petals' }, g);
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+    el('circle', { cx: 50 + Math.cos(a) * 17, cy: 50 + Math.sin(a) * 17, r: 12, fill: 'var(--pink)', stroke: 'var(--ink)', 'stroke-width': 3.5 }, petals);
+  }
+  el('circle', { cx: 50, cy: 50, r: 9, fill: 'var(--sun-deep)', stroke: 'var(--ink)', 'stroke-width': 3.5 }, g);
+  el('path', { class: 'droop', d: 'M30 82 q20 -10 40 0', fill: 'none', stroke: 'var(--ink)', 'stroke-width': 4, 'stroke-linecap': 'round' }, g);
+  return g;
+}
+function drawWell(parent, cell) {
+  const { x, y } = cellXY(cell);
+  const g = el('g', { transform: `translate(${x} ${y})` }, parent);
+  el('circle', { cx: 50, cy: 50, r: 31, fill: '#fff', stroke: 'var(--ink)', 'stroke-width': 5 }, g);
+  el('circle', { cx: 50, cy: 50, r: 20, fill: 'var(--water)', stroke: 'var(--ink)', 'stroke-width': 3 }, g);
+}
+
+// ---------- board ----------
+function buildBoard() {
+  const p = current();
+  const span = p.size * CELL;
+  svg.innerHTML = '';
+  svg.setAttribute('viewBox', `${-MARGIN} ${-MARGIN} ${span + MARGIN * 2} ${span + MARGIN * 2}`);
+  const defs = el('defs', {}, svg);
+  for (const [id, base, line] of [['hatch', 0.28, 0.95], ['hatch-preview', 0.14, 0.45]]) {
+    const pat = el('pattern', { id, width: 16, height: 16, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' }, defs);
+    el('rect', { width: 16, height: 16, fill: 'var(--shade)', 'fill-opacity': base }, pat);
+    el('rect', { width: 6, height: 16, fill: 'var(--shade)', 'fill-opacity': line }, pat);
+  }
+  const ground = el('g', {}, svg);
+  el('rect', { class: 'cell', x: 0, y: 0, width: span, height: span, rx: 4 }, ground);
+  for (let i = 1; i < p.size; i++) {
+    el('line', { class: 'grid-line', x1: i * CELL, y1: 0, x2: i * CELL, y2: span }, ground);
+    el('line', { class: 'grid-line', x1: 0, y1: i * CELL, x2: span, y2: i * CELL }, ground);
+  }
+  layers.wells = el('g', {}, svg);
+  layers.shadow = el('g', {}, svg);
+  layers.preview = el('g', {}, svg);
+  layers.items = el('g', {}, svg);
+  layers.buildings = el('g', {}, svg);
+  el('rect', { class: 'frame', x: 0, y: 0, width: span, height: span, rx: 4 }, svg);
+  layers.sun = el('g', { class: 'sun-marker' }, svg);
+  const sunBody = el('g', {}, layers.sun);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    el('line', { x1: Math.cos(a) * 19, y1: Math.sin(a) * 19, x2: Math.cos(a) * 27, y2: Math.sin(a) * 27, stroke: 'var(--ink)', 'stroke-width': 4, 'stroke-linecap': 'round' }, sunBody);
+  }
+  el('circle', { r: 14, fill: 'var(--sun-deep)', stroke: 'var(--ink)', 'stroke-width': 4 }, sunBody);
+
+  catEls = new Map();
+  flowerEls = new Map();
+  p.cells.forEach((kind, cell) => {
+    if (kind === WELL) drawWell(layers.wells, cell);
+    if (kind === CAT) catEls.set(cell, drawCat(layers.items, cell, p.naps[cell]));
+    if (kind === FLOWER) flowerEls.set(cell, drawFlower(layers.items, cell));
+  });
+}
+
+function placedExcept(skip) {
+  return state.placements.map((c, i) => (i === skip ? -1 : c));
+}
+
+function renderShadows({ sweep = false, skip = -1 } = {}) {
+  const p = current();
+  layers.shadow.innerHTML = '';
+  const delays = new Map();
+  placedExcept(skip).forEach((cell, i) => {
+    if (cell < 0) return;
+    castShadow(p.size, cell, p.heights[i], state.time, state.rule).forEach((s, k) => {
+      delays.set(s, Math.min(delays.get(s) ?? Infinity, k * 55));
+    });
+  });
+  const rects = [];
+  for (const [s, delay] of delays) {
+    const { x, y } = cellXY(s);
+    const r = el('rect', { class: 'shadow', x, y, width: CELL, height: CELL }, layers.shadow);
+    if (sweep && !reducedMotion) r.style.transitionDelay = `${delay}ms`;
+    else r.style.transition = 'none';
+    rects.push(r);
+  }
+  if (sweep && !reducedMotion) requestAnimationFrame(() => requestAnimationFrame(() => rects.forEach((r) => r.classList.add('on'))));
+  else rects.forEach((r) => r.classList.add('on'));
+}
+
+function renderBuildings(skip = -1) {
+  layers.buildings.innerHTML = '';
+  state.placements.forEach((cell, i) => {
+    if (cell < 0 || i === skip) return;
+    const { x, y } = cellXY(cell);
+    const g = el('g', { transform: `translate(${x} ${y})`, 'data-i': i }, layers.buildings);
+    const b = drawBuilding(g, current().heights[i]);
+    if (state.selected && state.selected.from === 'board' && state.selected.i === i) b.classList.add('selected');
+  });
+}
+
+function renderPreview(target, i) {
+  layers.preview.innerHTML = '';
+  if (target == null) return;
+  const p = current();
+  for (const s of castShadow(p.size, target, p.heights[i], state.time, state.rule)) {
+    const { x, y } = cellXY(s);
+    el('rect', { class: 'preview-shadow', x, y, width: CELL, height: CELL }, layers.preview);
+  }
+  const { x, y } = cellXY(target);
+  const g = el('g', { transform: `translate(${x} ${y})`, opacity: 0.9 }, layers.preview);
+  drawBuilding(g, p.heights[i]);
+}
+
+function renderSun() {
+  const span = current().size * CELL;
+  const pos = { am: [span + MARGIN / 2 + 2, span / 2], noon: [span / 2, span + MARGIN / 2 + 2], pm: [-MARGIN / 2 - 2, span / 2] }[state.time];
+  layers.sun.setAttribute('transform', `translate(${pos[0]} ${pos[1]}) scale(0.62)`);
+}
+
+function renderToggle() {
+  const p = current();
+  const box = $('toggle');
+  box.innerHTML = '';
+  for (const t of TIMES) {
+    const b = document.createElement('button');
+    b.innerHTML = `${sunIcon(t)}<span>${TIME_LABEL[t]}</span>`;
+    b.setAttribute('aria-pressed', String(state.time === t));
+    b.disabled = state.solving || (p.lockTime && p.lockTime !== t);
+    b.addEventListener('click', () => setTime(t));
+    box.appendChild(b);
+  }
+}
+
+function renderTray() {
+  const p = current();
+  const tray = $('tray');
+  tray.innerHTML = '';
+  p.heights.forEach((h, i) => {
+    const b = document.createElement('button');
+    b.className = 'slot';
+    b.dataset.i = i;
+    if (state.placements[i] >= 0) {
+      b.classList.add('empty');
+      b.setAttribute('aria-label', `House ${h} is on the board`);
+    } else {
+      b.innerHTML = buildingSvgString(h);
+      b.setAttribute('aria-label', `House, height ${h}`);
+    }
+    if (state.selected && state.selected.from === 'tray' && state.selected.i === i) b.classList.add('selected');
+    tray.appendChild(b);
+  });
+}
+
+function renderStatus(result) {
+  const suns = $('suns');
+  suns.innerHTML = '';
+  for (const t of TIMES) {
+    const ok = result.allPlaced && result.timeOk[t];
+    const span = document.createElement('span');
+    span.className = 'sun-check';
+    span.innerHTML = `${sunIcon(t, 22)}<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">${ok
+      ? '<path d="M3 8.5l3 3 7-7" fill="none" stroke="#1f7a4d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'
+      : '<circle cx="8" cy="8" r="3" fill="rgba(27,39,102,.25)"/>'}</svg>`;
+    span.setAttribute('aria-label', `${TIME_LABEL[t]} ${ok ? 'done' : 'not yet'}`);
+    suns.appendChild(span);
+  }
+  const catIcon = '<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="28,44 31,18 47,33" fill="#fff" stroke="#1b2766" stroke-width="8"/><polygon points="72,44 69,18 53,33" fill="#fff" stroke="#1b2766" stroke-width="8"/><ellipse cx="50" cy="54" rx="30" ry="27" fill="#fff" stroke="#1b2766" stroke-width="8"/></svg>';
+  const flowerIcon = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="28" r="16" fill="#e8378a" stroke="#1b2766" stroke-width="6"/><circle cx="72" cy="46" r="16" fill="#e8378a" stroke="#1b2766" stroke-width="6"/><circle cx="62" cy="72" r="16" fill="#e8378a" stroke="#1b2766" stroke-width="6"/><circle cx="38" cy="72" r="16" fill="#e8378a" stroke="#1b2766" stroke-width="6"/><circle cx="28" cy="46" r="16" fill="#e8378a" stroke="#1b2766" stroke-width="6"/><circle cx="50" cy="52" r="12" fill="#e0a91f" stroke="#1b2766" stroke-width="6"/></svg>';
+  const counts = [`<span class="count" aria-label="Cats asleep">${catIcon}${result.asleepCount}/${result.cats.length}</span>`];
+  if (result.flowers.length) counts.push(`<span class="count" aria-label="Flowers in sun">${flowerIcon}${result.litCount}/${result.flowers.length}</span>`);
+  $('counts').innerHTML = counts.join('');
+}
+
+function renderCreatures(result) {
+  for (const c of result.cats) catEls.get(c.cell).classList.toggle('asleep', c.asleep);
+  for (const f of result.flowers) flowerEls.get(f.cell).classList.toggle('wilted', !f.lit);
+}
+
+// Cats that don't nap at the selected time fade back, so switching the time shows whose turn it is.
+function renderDuty() {
+  const naps = current().naps;
+  for (const [cell, node] of catEls) node.classList.toggle('off-duty', naps[cell] !== state.time);
+}
+
+// Size the board to the space left over, so nothing ever scrolls and the board and tray stay together.
+function fitBoard() {
+  const app = document.querySelector('.app');
+  const cs = getComputedStyle(app);
+  const innerH = app.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const innerW = app.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const kids = [...app.children];
+  const others = kids
+    .filter((c) => !c.classList.contains('board-wrap') && !c.classList.contains('spacer'))
+    .reduce((sum, c) => sum + c.getBoundingClientRect().height, 0);
+  const gaps = (parseFloat(cs.rowGap) || 8) * (kids.length - 1);
+  const size = Math.max(180, Math.min(innerW, innerH - others - gaps));
+  document.documentElement.style.setProperty('--board', `${Math.floor(size)}px`);
+}
+
+function describe(cell) {
+  const p = current();
+  const kind = p.cells[cell];
+  if (kind === CAT) return { am: 'This cat naps in the morning.', noon: 'This cat naps at noon.', pm: 'This cat naps in the evening.' }[p.naps[cell]];
+  if (kind === FLOWER) return 'Flowers need sun all day.';
+  if (kind === WELL) return 'A well is flat: no shadow, and no room for a house.';
+  return null;
+}
+
+function shadowRuleText() {
+  return state.rule === 'one'
+    ? 'Shadows fall away from the sun: left in the morning, up at noon, right in the evening. Morning and evening shadows are as long as the house is tall. At noon every shadow is one tile.'
+    : 'Shadows fall away from the sun: left in the morning, up at noon, right in the evening. Morning and evening shadows are as long as the house is tall. At noon they are half as long, rounded up.';
+}
+
+function renderTitles() {
+  const p = current();
+  $('title').textContent = p.kind === 'lesson' ? p.title : p.title;
+  $('subtitle').textContent = p.kind === 'lesson' ? p.note : `${p.day}'s town`;
+}
+
+function evaluateAndRender() {
+  const result = evaluate(current(), state.placements, state.rule);
+  renderCreatures(result);
+  renderStatus(result);
+  return result;
+}
+
+function renderAll() {
+  renderTitles();
+  renderToggle();
+  renderTray();
+  renderBuildings();
+  renderShadows();
+  renderSun();
+  renderDuty();
+  evaluateAndRender();
+  fitBoard();
+  $('help-shadows').textContent = shadowRuleText();
+  $('mute-waves').style.display = state.muted ? 'none' : '';
+  $('mute-cross').style.display = state.muted ? '' : 'none';
+}
+
+// ---------- puzzle lifecycle ----------
+function loadPuzzle(index, { resume = false } = {}) {
+  state.index = Math.max(0, Math.min(index, puzzles().length - 1));
+  store.set('index', state.index);
+  const p = current();
+  const saved = store.get('board', null);
+  state.placements = resume && saved && saved.id === p.id && saved.rule === state.rule ? saved.placements : p.heights.map(() => -1);
+  state.time = p.lockTime || 'am';
+  state.selected = null;
+  state.solving = false;
+  state.attempt = { id: p.id, startedAt: Date.now(), visibleMs: 0, visibleFrom: performance.now(), drops: 0, lifts: 0, toggles: 0, firstDropMs: null };
+  closeSheets();
+  buildBoard();
+  renderAll();
+}
+
+function saveBoard() {
+  store.set('board', { id: current().id, rule: state.rule, placements: state.placements });
+}
+
+function playMs() {
+  const a = state.attempt;
+  return a.visibleMs + (a.visibleFrom != null ? performance.now() - a.visibleFrom : 0);
+}
+
+document.addEventListener('visibilitychange', () => {
+  const a = state.attempt;
+  if (!a) return;
+  if (document.hidden) {
+    if (a.visibleFrom != null) a.visibleMs += performance.now() - a.visibleFrom;
+    a.visibleFrom = null;
+    if (audio) audio.suspend();
+  } else {
+    if (!state.solving) a.visibleFrom = performance.now();
+    if (audio && !state.muted) audio.resume();
+  }
+});
+
+function setTime(t) {
+  if (state.solving || current().lockTime) return;
+  if (state.time === t) return;
+  state.time = t;
+  state.attempt.toggles++;
+  renderToggle();
+  renderShadows({ sweep: true });
+  renderSun();
+  renderDuty();
+}
+
+function placeBuilding(i, cell) {
+  const from = state.placements[i];
+  state.placements[i] = cell;
+  if (cell >= 0) {
+    state.attempt.drops++;
+    if (state.attempt.firstDropMs == null) state.attempt.firstDropMs = playMs();
+    sound.tok();
+  } else if (from >= 0) {
+    state.attempt.lifts++;
+    sound.lift();
+  }
+  state.selected = null;
+  saveBoard();
+  renderTray();
+  renderBuildings();
+  renderShadows();
+  const result = evaluateAndRender();
+  if (result.solved) runSiesta(result);
+}
+
+function isFreeFor(cell, i) {
+  if (cell == null) return false;
+  if (!canBuildOn(current(), cell)) return false;
+  const other = state.placements.indexOf(cell);
+  return other < 0 || other === i;
+}
+
+function toast(message) {
+  const t = $('toast');
+  t.textContent = message;
+  t.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+function whyNot(cell) {
+  const kind = current().cells[cell];
+  if (kind === CAT) return 'That spot is taken by a cat.';
+  if (kind === FLOWER) return 'Houses can’t go on flowers.';
+  if (kind === WELL) return 'Houses can’t go on the well.';
+  return 'There’s already a house there.';
+}
+
+// ---------- input ----------
+function cellAt(clientX, clientY) {
+  const pt = svg.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return null;
+  const p = pt.matrixTransform(ctm.inverse());
+  const size = current().size;
+  const c = Math.floor(p.x / CELL);
+  const r = Math.floor(p.y / CELL);
+  if (r < 0 || c < 0 || r >= size || c >= size) return null;
+  return r * size + c;
+}
+
+function cellPixels() {
+  const rect = svg.getBoundingClientRect();
+  const span = current().size * CELL + MARGIN * 2;
+  return (Math.min(rect.width, rect.height) / span) * CELL;
+}
+
+function showGhost(i, x, y) {
+  const g = $('ghost');
+  if (g.dataset.i !== String(i)) {
+    g.innerHTML = buildingSvgString(current().heights[i]);
+    g.dataset.i = String(i);
+  }
+  const s = Math.max(48, Math.min(84, cellPixels()));
+  g.style.width = g.style.height = `${s}px`;
+  g.style.transform = `translate(${x - s / 2}px, ${y - s / 2}px)`;
+  g.style.display = 'block';
+}
+function hideGhost() { $('ghost').style.display = 'none'; }
+
+document.addEventListener('pointerdown', (e) => {
+  if (state.solving || document.querySelector('.sheet.open')) return;
+  unlockAudio();
+  const slot = e.target.closest('.slot');
+  const onBoard = e.target.closest('#board');
+  let source = null;
+  let downCell = null;
+  if (slot) {
+    if (!slot.classList.contains('empty')) source = { from: 'tray', i: Number(slot.dataset.i) };
+  } else if (onBoard) {
+    downCell = cellAt(e.clientX, e.clientY);
+    const i = downCell == null ? -1 : state.placements.indexOf(downCell);
+    if (i >= 0) source = { from: 'board', i };
+  } else {
+    return;
+  }
+  if (source) e.preventDefault();
+  state.drag = { source, downCell, onTray: Boolean(slot), pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false, touch: e.pointerType !== 'mouse', target: null };
+});
+
+document.addEventListener('pointermove', (e) => {
+  const d = state.drag;
+  if (!d || e.pointerId !== d.pointerId || !d.source) return;
+  if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 8) return;
+  e.preventDefault();
+  const i = d.source.i;
+  if (!d.moved) {
+    d.moved = true;
+    state.selected = null;
+    if (d.source.from === 'board') {
+      renderBuildings(i);
+      renderShadows({ skip: i });
+    }
+    renderTray();
+  }
+  const lift = d.touch ? cellPixels() * 0.85 : 0;
+  const target = cellAt(e.clientX, e.clientY - lift);
+  if (isFreeFor(target, i)) {
+    if (target !== d.target) renderPreview(target, i);
+    d.target = target;
+    hideGhost();
+  } else {
+    if (d.target != null) renderPreview(null);
+    d.target = null;
+    showGhost(i, e.clientX, e.clientY - lift);
+  }
+});
+
+function endDrag(e, cancelled) {
+  const d = state.drag;
+  if (!d || e.pointerId !== d.pointerId) return;
+  state.drag = null;
+  hideGhost();
+  renderPreview(null);
+  if (cancelled) { renderAll(); return; }
+
+  if (d.moved && d.source) {
+    const i = d.source.i;
+    const lift = d.touch ? cellPixels() * 0.85 : 0;
+    const dropCell = cellAt(e.clientX, e.clientY - lift);
+    if (isFreeFor(dropCell, i)) {
+      if (dropCell !== state.placements[i]) placeBuilding(i, dropCell);
+      else renderAll();
+      return;
+    }
+    if (dropCell == null) {
+      // Dropped off the board: back to the tray.
+      if (d.source.from === 'board') placeBuilding(i, -1);
+      else renderAll();
+      return;
+    }
+    toast(whyNot(dropCell));
+    renderAll();
+    return;
+  }
+
+  // Taps
+  if (d.source && d.source.from === 'tray') {
+    const same = state.selected && state.selected.from === 'tray' && state.selected.i === d.source.i;
+    state.selected = same ? null : d.source;
+    renderTray();
+    renderBuildings();
+    return;
+  }
+  if (d.source && d.source.from === 'board') {
+    const same = state.selected && state.selected.from === 'board' && state.selected.i === d.source.i;
+    state.selected = same ? null : d.source;
+    renderTray();
+    renderBuildings();
+    return;
+  }
+  if (d.onTray && state.selected && state.selected.from === 'board') {
+    placeBuilding(state.selected.i, -1);
+    return;
+  }
+  if (d.downCell != null && state.selected) {
+    const i = state.selected.i;
+    if (isFreeFor(d.downCell, i)) placeBuilding(i, d.downCell);
+    else toast(whyNot(d.downCell));
+    return;
+  }
+  if (d.downCell != null) {
+    const text = describe(d.downCell);
+    if (text) toast(text);
+  }
+}
+document.addEventListener('pointerup', (e) => endDrag(e, false));
+document.addEventListener('pointercancel', (e) => endDrag(e, true));
+
+$('reset-btn').addEventListener('click', () => {
+  if (state.solving || state.placements.every((c) => c < 0)) return;
+  state.placements = state.placements.map(() => -1);
+  state.attempt.lifts++;
+  state.selected = null;
+  saveBoard();
+  sound.lift();
+  renderAll();
+});
+
+// ---------- the siesta ----------
+const wait = (ms) => new Promise((r) => setTimeout(r, reducedMotion ? 0 : ms));
+
+async function runSiesta(result) {
+  state.solving = true;
+  const a = state.attempt;
+  const timeMs = playMs();
+  a.visibleMs = timeMs;
+  a.visibleFrom = null;
+  logAttempt({ solved: true, timeMs });
+  state.selected = null;
+  renderTray();
+  for (const el of catEls.values()) el.classList.remove('asleep');
+  await wait(150);
+  // The day plays back. A lesson locked to one time stays on that time.
+  const times = current().lockTime ? [current().lockTime] : TIMES;
+  for (const t of times) {
+    state.time = t;
+    renderToggle();
+    renderSun();
+    renderDuty();
+    renderShadows({ sweep: true });
+    await wait(300);
+    for (const c of result.cats.filter((x) => x.nap === t)) {
+      catEls.get(c.cell).classList.add('asleep');
+      sound.purr();
+      await wait(160);
+    }
+    await wait(120);
+  }
+  for (const el of catEls.values()) el.classList.remove('off-duty');
+  for (const el of flowerEls.values()) {
+    el.classList.remove('bloom');
+    void el.getBBox();
+    el.classList.add('bloom');
+  }
+  sound.chime();
+  await wait(450);
+  showResult(timeMs);
+}
+
+function formatTime(ms) {
+  const s = Math.max(1, Math.round(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function lessonDone(id) {
+  const noon = state.rule === 'one'
+    ? 'At noon the sun is high in the south, so every house shades just the tile above it.'
+    : 'At noon the sun is high in the south, so shadows fall up and are half as long.';
+  return {
+    'lesson-1': ['That’s the idea.', 'Morning sun throws shadows to the left.'],
+    'lesson-2': ['Noon shadows fall up.', noon],
+    'lesson-3': ['You’re ready.', 'Evening shadows fall to the right. Now a real town.'],
+  }[id];
+}
+
+function showResult(timeMs) {
+  const p = current();
+  const last = state.index === puzzles().length - 1;
+  const sheet = $('result-sheet');
+  if (p.kind === 'lesson') {
+    const [head, body] = lessonDone(p.id);
+    sheet.innerHTML = `<h2>${head}</h2><p>${body}</p><button class="primary" id="next-btn">Next</button>`;
+  } else {
+    sheet.innerHTML = `<h2>${p.title} is asleep.</h2>
+      <div class="stats"><div><strong>${formatTime(timeMs)}</strong>time</div><div><strong>${state.attempt.drops}</strong>moves</div></div>
+      <button class="primary" id="next-btn">${last ? 'See how you did' : 'Next town'}</button>`;
+  }
+  openSheet(sheet);
+  $('next-btn').addEventListener('click', () => (last ? showSummary() : loadPuzzle(state.index + 1)));
+}
+
+function showSummary() {
+  const rows = store.get('log', []).filter((r) => r.player === state.player && r.solved);
+  const towns = rows.filter((r) => r.kind === 'town');
+  const sheet = $('result-sheet');
+  sheet.innerHTML = `<h2>Every town is asleep.</h2><p>You put ${towns.length} towns to sleep. Thanks for playing.</p>
+    <button class="primary" id="again-btn">Play again from the start</button>`;
+  openSheet(sheet);
+  $('again-btn').addEventListener('click', () => loadPuzzle(0));
+}
+
+// ---------- sheets ----------
+function openSheet(sheet) {
+  // The result card leaves the sleeping town visible: that's the reward.
+  if (sheet.id !== 'result-sheet') $('scrim').classList.add('open');
+  sheet.classList.add('open');
+}
+function closeSheets() {
+  document.querySelectorAll('.sheet.open').forEach((s) => s.classList.remove('open'));
+  $('scrim').classList.remove('open');
+}
+$('help-btn').addEventListener('click', () => openSheet($('help-sheet')));
+document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closeSheets));
+$('scrim').addEventListener('click', () => {
+  if (!$('result-sheet').classList.contains('open')) closeSheets();
+});
+
+// ---------- playtest log + host panel ----------
+function logAttempt({ solved, timeMs }) {
+  const p = current();
+  const a = state.attempt;
+  const log = store.get('log', []);
+  log.push({
+    player: state.player, id: p.id, kind: p.kind, day: p.day || '', rule: state.rule, solved,
+    timeMs: Math.round(timeMs), drops: a.drops, lifts: a.lifts, toggles: a.toggles,
+    firstDropMs: a.firstDropMs == null ? null : Math.round(a.firstDropMs), at: new Date().toISOString(),
+  });
+  store.set('log', log);
+}
+
+function renderHost() {
+  const log = store.get('log', []);
+  const sheet = $('host-sheet');
+  const jump = puzzles().map((p, i) => `<button class="chip" data-jump="${i}" aria-pressed="${i === state.index}">${p.kind === 'lesson' ? p.title.replace(' of 3', '') : `${i - 2}. ${p.day.slice(0, 3)}`}</button>`).join('');
+  const rows = log.slice(-40).reverse().map((r) => `<tr><td>P${r.player}</td><td>${r.id}</td><td>${r.rule === 'one' ? '1 tile' : 'half'}</td><td>${r.solved ? formatTime(r.timeMs) : 'skipped'}</td><td>${r.drops}</td><td>${r.toggles}</td></tr>`).join('');
+  sheet.innerHTML = `<h2>Playtest host</h2>
+    <p>Hand the phone over at Lesson 1. Watch silently and note where they hesitate.</p>
+    <h3>Player</h3><div class="chips"><span class="chip" aria-pressed="true">P${state.player}</span><button class="chip" id="new-player">New player (starts at Lesson 1)</button></div>
+    <h3>Noon rule</h3><div class="chips">
+      <button class="chip" data-rule="one" aria-pressed="${state.rule === 'one'}">1 tile north</button>
+      <button class="chip" data-rule="half" aria-pressed="${state.rule === 'half'}">Half the height north</button></div>
+    <h3>Jump to</h3><div class="chips">${jump}</div>
+    <h3>Log (newest first)</h3>
+    <table><tr><th>Who</th><th>Puzzle</th><th>Noon</th><th>Time</th><th>Moves</th><th>Time switches</th></tr>${rows || '<tr><td colspan="6">Nothing yet</td></tr>'}</table>
+    <div class="chips" style="margin-top:12px"><button class="chip" id="copy-log">Copy log</button><button class="chip" id="clear-log">Clear log</button></div>
+    <button class="primary" data-close>Close</button>`;
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheets);
+  $('new-player').addEventListener('click', () => {
+    state.player += 1;
+    store.set('player', state.player);
+    store.set('board', null);
+    loadPuzzle(0);
+  });
+  sheet.querySelectorAll('[data-rule]').forEach((b) => b.addEventListener('click', () => {
+    state.rule = b.dataset.rule;
+    store.set('rule', state.rule);
+    loadPuzzle(state.index);
+  }));
+  sheet.querySelectorAll('[data-jump]').forEach((b) => b.addEventListener('click', () => {
+    if (!state.solving) logAttempt({ solved: false, timeMs: playMs() });
+    loadPuzzle(Number(b.dataset.jump));
+  }));
+  $('copy-log').addEventListener('click', async () => {
+    const head = 'player\tpuzzle\tday\tnoon_rule\tsolved\ttime_s\tmoves\tlifts\ttime_switches\tfirst_move_s\tat';
+    const lines = log.map((r) => [r.player, r.id, r.day, r.rule, r.solved, (r.timeMs / 1000).toFixed(1), r.drops, r.lifts, r.toggles, r.firstDropMs == null ? '' : (r.firstDropMs / 1000).toFixed(1), r.at].join('\t'));
+    const text = [head, ...lines].join('\n');
+    try { await navigator.clipboard.writeText(text); toast('Log copied.'); } catch { prompt('Copy the log:', text); }
+  });
+  $('clear-log').addEventListener('click', () => {
+    if (confirm('Clear the whole playtest log?')) { store.set('log', []); renderHost(); }
+  });
+}
+$('host-btn').addEventListener('click', () => { renderHost(); openSheet($('host-sheet')); });
+
+// ---------- sound (synthesised; starts after the first tap) ----------
+let audio = null;
+function unlockAudio() {
+  if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch { audio = null; } }
+  if (audio && audio.state === 'suspended' && !state.muted) audio.resume();
+}
+function tone(freq, dur, type = 'sine', gain = 0.12, delay = 0) {
+  if (!audio || state.muted) return;
+  const t = audio.currentTime + delay;
+  const o = audio.createOscillator();
+  const g = audio.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(gain, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(audio.destination);
+  o.start(t);
+  o.stop(t + dur + 0.03);
+}
+const sound = {
+  tok() { tone(196, 0.09, 'triangle', 0.22); tone(392, 0.05, 'sine', 0.05); },
+  lift() { tone(560, 0.07, 'sine', 0.06); },
+  purr() { tone(98, 0.22, 'triangle', 0.08); tone(104, 0.22, 'triangle', 0.05, 0.05); },
+  chime() { tone(659, 0.7, 'sine', 0.11); tone(988, 0.8, 'sine', 0.07, 0.12); tone(1319, 0.9, 'sine', 0.045, 0.24); },
+};
+$('mute-btn').addEventListener('click', () => {
+  state.muted = !state.muted;
+  store.set('muted', state.muted);
+  if (audio) state.muted ? audio.suspend() : audio.resume();
+  renderAll();
+});
+
+window.addEventListener('resize', () => { hideGhost(); fitBoard(); });
+loadPuzzle(state.index, { resume: true });
+</script>
+</body>
+</html>
