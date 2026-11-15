@@ -74,13 +74,14 @@ Phase 0: prove the fun, and set up (Sun Nov 15 – Tue Nov 17)
 Risks: Node's TS stripping vs the tsc project setup; JSON import attributes in the server bundle; drag inside the
 Reddit webview on iOS.
 
+## GitHub
+- 2026-11-15: account billing lock cleared by GitHub Support; Actions switched back on for siesta-town. CI runs
+  typecheck, lint, unit tests and build on every push to main.
+
 ## Known bugs
 - Prototype only: on a 360×640 screen the toast can cover the bottom row of the board for 1.6 s.
 
 ## Needs a human
-- GitHub billing is locked, so Actions can't run; Actions is switched off on siesta-town (2026-11-15). After fixing
-  billing at github.com/settings/billing, turn it back on: `gh api -X PUT repos/MehulKumars/siesta-town/actions/permissions -F enabled=true`.
-  Until then the agent runs types, lint, tests and build locally before every commit.
 - Go/no-go after the prototype playtests
 - Art direction sign-off, type choice, the drawn tile set
 - Writing or approving every string in `copy.ts`
