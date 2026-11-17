@@ -9,7 +9,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Puzzle, TimeOfDay } from '../shared/engine/types.ts';
 
-const FIELD_OF_VIEW = 30;
+const FIELD_OF_VIEW = 24;
 /** How steeply the camera looks down, in radians from level. */
 const LOOK_DOWN = (60 * Math.PI) / 180;
 const STOREY = 0.26;
@@ -25,8 +25,8 @@ const LIGHT = [
   { sun: 0xffd2a0, sky: 0xf1e8ff, ground: 0xe6c2a6, power: 2.5 },
 ] as const;
 const WALLS = [0xfffaf0, 0xffe9c9, 0xd6ebfb, 0xdff3d0, 0xfbe1ee] as const;
-const FUR = [0xffffff, 0xf2a45c, 0xb9bfcc, 0x4a4a5c, 0xf6e2b8, 0xd98b5f] as const;
-const PETALS = [0xff4f93, 0xff7a59, 0xc65bd6, 0xff5d6c] as const;
+const FUR = [0xffffff, 0xf5a34e, 0xaab3c5, 0x43435a, 0xf3d9a4, 0xe08a5b] as const;
+const PETALS = [0xff4f93, 0xff7a3d, 0xc65bd6, 0xff5368] as const;
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -73,8 +73,11 @@ type HouseView = {
 type CatView = {
   group: THREE.Group;
   body: THREE.Mesh;
+  chest: THREE.Mesh;
+  paws: THREE.Mesh[];
   head: THREE.Group;
   eyes: THREE.Mesh[];
+  glints: THREE.Mesh[];
   tail: THREE.Group;
   badge: THREE.Sprite;
   alarm: THREE.Sprite;
@@ -159,6 +162,7 @@ export class TownStage {
   private readonly tileShape: THREE.BufferGeometry;
   private readonly ringShape = new THREE.TorusGeometry(0.4, 0.035, 6, 30);
   private readonly ball = new THREE.SphereGeometry(1, 20, 14);
+  private readonly edge = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
 
   private calm = 0;
 
@@ -215,16 +219,16 @@ export class TownStage {
       }
     });
     this.sunRays = new THREE.Sprite(new THREE.SpriteMaterial({ map: sunFace, depthWrite: false }));
-    this.sunRays.scale.setScalar(1.25);
+    this.sunRays.scale.setScalar(1.05);
     this.sunGlow = new THREE.Sprite(
       new THREE.SpriteMaterial({ map: this.halo, color: 0xfff3c2, opacity: 0.55, transparent: true, depthWrite: false })
     );
-    this.sunGlow.scale.setScalar(2.2);
+    this.sunGlow.scale.setScalar(1.8);
     const core = new THREE.Mesh(this.ball, new THREE.MeshBasicMaterial({ color: 0xffd23f }));
-    core.scale.setScalar(0.34);
+    core.scale.setScalar(0.29);
     const cheek = new THREE.Mesh(this.ball, new THREE.MeshBasicMaterial({ color: 0xffb21e }));
-    cheek.scale.set(0.34, 0.34, 0.34);
-    cheek.position.set(0.04, -0.04, -0.05);
+    cheek.scale.set(0.29, 0.29, 0.29);
+    cheek.position.set(0.035, -0.035, -0.05);
     this.sun.add(this.sunGlow, this.sunRays, cheek, core);
     this.scene.add(this.sun, this.sunPath);
 
@@ -362,7 +366,7 @@ export class TownStage {
     const n = puzzle.size;
     // The square: a slab of sandstone with paving stones on top and a low whitewashed wall round it.
     const slab = new THREE.Mesh(
-      new RoundedBoxGeometry(n + 1.5, 0.7, n + 1.5, 3, 0.12),
+      new RoundedBoxGeometry(n + 1.2, 0.7, n + 1.2, 3, 0.12),
       new THREE.MeshStandardMaterial({ color: 0xcf8452, roughness: 0.95 })
     );
     slab.position.y = -0.36;
@@ -465,11 +469,18 @@ export class TownStage {
     return { x: (cell % this.size) - mid, z: mid - Math.floor(cell / this.size) };
   }
 
+  /** Where the sun hangs: over the back-right corner in the morning, high over the back at noon, back-left in the evening. */
   private sunAt(day: number): THREE.Vector3 {
     const turn = (day * Math.PI) / 2;
-    const lift = Math.sin(turn);
-    const reach = this.size / 2 + 0.95;
-    return new THREE.Vector3(Math.cos(turn) * reach, 0.85 + lift * (this.size * 0.5 + 0.5), -0.1 - lift * this.size * 0.42);
+    return new THREE.Vector3(Math.cos(turn) * (this.size / 2 + 0.15), 1.2 + Math.sin(turn) * 0.95, -(this.size / 2 + 0.8));
+  }
+
+  /** Gives a shape an ink outline: a slightly bigger copy of it, drawn inside-out behind it. */
+  private inked<T extends THREE.Mesh>(mesh: T, thick = 1.1): T {
+    const rim = new THREE.Mesh(mesh.geometry, this.edge);
+    rim.scale.setScalar(thick);
+    mesh.add(rim);
+    return mesh;
   }
 
   private blob(radius: number): THREE.Mesh {
@@ -507,107 +518,128 @@ export class TownStage {
     this.town.add(well);
   }
 
+  /** A potted flower with a round, open face. It looks up at the player in the sun and droops in shade. */
   private plantFlower(cell: number): void {
     const at = this.spot(cell);
     const group = new THREE.Group();
+    const grown = new THREE.Group();
     const colour = new THREE.Color(pick(PETALS, Math.floor(grain(cell, 20) * PETALS.length), PETALS[0]));
-    const tub = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.11, 0.17, 12), new THREE.MeshStandardMaterial({ color: 0xd9643a, roughness: 0.8 }));
-    tub.position.y = 0.135;
-    const green = new THREE.MeshStandardMaterial({ color: 0x4fa35a, roughness: 0.7 });
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 0.3, 6), green);
-    stem.position.y = 0.36;
-    group.add(this.blob(0.22), tub, stem);
+    const tub = this.inked(
+      new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.12, 0.2, 14), new THREE.MeshStandardMaterial({ color: 0xe0683c, roughness: 0.8 })),
+      1.1
+    );
+    tub.position.y = 0.15;
+    const green = new THREE.MeshStandardMaterial({ color: 0x45a856, roughness: 0.7 });
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.032, 0.32, 6), green);
+    stem.position.y = 0.4;
+    grown.add(tub, stem);
     for (const side of [-1, 1]) {
       const blade = new THREE.Mesh(this.ball, green);
-      blade.scale.set(0.11, 0.03, 0.05);
-      blade.position.set(side * 0.09, 0.3, 0);
-      blade.rotation.z = side * 0.6;
-      group.add(blade);
+      blade.scale.set(0.13, 0.035, 0.07);
+      blade.position.set(side * 0.11, 0.33, 0.02);
+      blade.rotation.z = side * 0.55;
+      grown.add(blade);
     }
     const head = new THREE.Group();
-    head.position.y = 0.52;
-    const petals = new THREE.MeshStandardMaterial({ color: colour, roughness: 0.45 });
-    for (let i = 0; i < 6; i++) {
-      const petal = new THREE.Mesh(this.ball, petals);
-      const turn = (i / 6) * Math.PI * 2;
-      petal.scale.set(0.075, 0.03, 0.11);
-      petal.position.set(Math.sin(turn) * 0.11, 0, Math.cos(turn) * 0.11);
-      petal.rotation.y = turn;
+    head.position.y = 0.58;
+    const petals = new THREE.MeshStandardMaterial({ color: colour, roughness: 0.5 });
+    for (let i = 0; i < 7; i++) {
+      const petal = this.inked(new THREE.Mesh(this.ball, petals), 1.14);
+      const turn = (i / 7) * Math.PI * 2;
+      petal.scale.set(0.105, 0.04, 0.105);
+      petal.position.set(Math.sin(turn) * 0.145, 0, Math.cos(turn) * 0.145);
       head.add(petal);
     }
-    const heart = new THREE.Mesh(this.ball, new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.5 }));
-    heart.scale.set(0.07, 0.05, 0.07);
+    const heart = this.inked(new THREE.Mesh(this.ball, new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.5 })), 1.14);
+    heart.scale.set(0.095, 0.065, 0.095);
+    heart.position.y = 0.02;
     head.add(heart);
-    group.add(head);
-    // Drawn a third bigger than built, so a flower fills its tile.
-    const grown = new THREE.Group();
-    grown.add(...group.children.filter((part) => part !== group.children[0]));
-    grown.scale.setScalar(1.35);
-    group.add(grown);
+    grown.add(head);
+    grown.scale.setScalar(1.18);
     const ring = this.warning();
-    group.add(ring);
+    group.add(this.blob(0.26), grown, ring);
     group.position.set(at.x, 0, at.z);
     this.town.add(group);
     this.flowers.set(cell, { group, head, petals, ring, colour, lit: true, trouble: false, open: 1, pop: 0 });
   }
 
+  /** A cat with a big head, pointed ears, a pale muzzle and chest, front paws and a tail, sitting on its nap-time mat. */
   private seatCat(cell: number, nap: TimeOfDay): void {
     const at = this.spot(cell);
     const group = new THREE.Group();
     const coat = pick(FUR, Math.floor(grain(cell, 30) * FUR.length), FUR[0]);
-    const fur = new THREE.MeshStandardMaterial({ color: coat, roughness: 0.75 });
-    const dark = new THREE.MeshStandardMaterial({ color: coat === 0x4a4a5c ? 0xf2f2f2 : INK, roughness: 0.4 });
-    const body = new THREE.Mesh(this.ball, fur);
+    const black = coat === 0x43435a;
+    const fur = new THREE.MeshStandardMaterial({ color: coat, roughness: 0.8 });
+    const pale = new THREE.MeshStandardMaterial({ color: coat === 0xffffff ? 0xf1ece4 : 0xfffaf0, roughness: 0.8 });
+    const eyePaint = new THREE.MeshStandardMaterial({ color: black ? 0xffe27a : INK, roughness: 0.25 });
+    const pink = new THREE.MeshStandardMaterial({ color: 0xff8fb1, roughness: 0.6 });
+    const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const part = (material: THREE.Material, sx: number, sy: number, sz: number) => {
+      const mesh = new THREE.Mesh(this.ball, material);
+      mesh.scale.set(sx, sy, sz);
+      return mesh;
+    };
+
+    const body = this.inked(part(fur, 0.2, 0.24, 0.19), 1.09);
+    const chest = part(pale, 0.115, 0.14, 0.07);
+    const paws = [-1, 1].map(() => part(pale, 0.055, 0.045, 0.065));
+
     const head = new THREE.Group();
-    const skull = new THREE.Mesh(this.ball, fur);
-    skull.scale.set(0.165, 0.15, 0.15);
-    head.add(skull);
+    head.add(this.inked(part(fur, 0.21, 0.178, 0.178), 1.09));
     for (const side of [-1, 1]) {
-      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.11, 4), fur);
-      ear.position.set(side * 0.095, 0.14, 0);
-      ear.rotation.z = -side * 0.25;
-      head.add(ear);
+      const ear = this.inked(new THREE.Mesh(new THREE.ConeGeometry(0.078, 0.16, 4), fur), 1.18);
+      ear.position.set(side * 0.128, 0.175, -0.01);
+      ear.rotation.set(0, side * 0.5, -side * 0.3);
+      const inner = new THREE.Mesh(new THREE.ConeGeometry(0.042, 0.1, 4), pink);
+      inner.position.set(side * 0.124, 0.163, 0.02);
+      inner.rotation.copy(ear.rotation);
+      head.add(ear, inner);
     }
+    const muzzle = part(pale, 0.09, 0.062, 0.05);
+    muzzle.position.set(0, -0.058, 0.148);
+    const nose = part(pink, 0.025, 0.018, 0.02);
+    nose.position.set(0, -0.032, 0.198);
+    head.add(muzzle, nose);
     const eyes: THREE.Mesh[] = [];
+    const glints: THREE.Mesh[] = [];
     for (const side of [-1, 1]) {
-      const eye = new THREE.Mesh(this.ball, dark);
-      eye.scale.set(0.03, 0.04, 0.02);
-      eye.position.set(side * 0.064, 0.015, 0.135);
-      head.add(eye);
+      const eye = part(eyePaint, 0.036, 0.048, 0.02);
+      eye.position.set(side * 0.088, 0.022, 0.16);
+      const glint = part(white, 0.012, 0.012, 0.008);
+      glint.position.set(side * 0.088 + 0.012, 0.04, 0.178);
+      head.add(eye, glint);
       eyes.push(eye);
+      glints.push(glint);
     }
-    const nose = new THREE.Mesh(this.ball, new THREE.MeshStandardMaterial({ color: 0xff7aa8, roughness: 0.5 }));
-    nose.scale.set(0.02, 0.015, 0.02);
-    nose.position.set(0, -0.03, 0.148);
-    head.add(nose);
+
     const tail = new THREE.Group();
-    const tip = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.26, 4, 8), fur);
-    tip.position.y = 0.14;
+    const tip = this.inked(new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.3, 4, 8), fur), 1.2);
+    tip.position.y = 0.16;
     tail.add(tip);
-    tail.position.set(0.12, 0.1, -0.14);
+    tail.position.set(0.14, 0.1, -0.13);
+
     const badge = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.badges[nap], depthTest: false, transparent: true }));
-    badge.scale.setScalar(0.5);
-    badge.position.set(0.34, 0.98, 0);
+    badge.position.set(0, 1.26, 0);
     badge.renderOrder = 5;
     const alarm = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.alarmPaint, depthTest: false, transparent: true }));
     alarm.scale.setScalar(0.3);
-    alarm.position.set(-0.3, 1.0, 0);
+    alarm.position.set(-0.36, 1.0, 0);
     alarm.renderOrder = 6;
     alarm.visible = false;
     const ring = this.warning();
     // The mat says when this cat naps: pink for morning, yellow for noon, violet for evening.
     const mat = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.41, 0.41, 0.03, 28),
+      new THREE.CylinderGeometry(0.43, 0.43, 0.03, 28),
       new THREE.MeshStandardMaterial({ color: NAP_COLOUR[nap], roughness: 0.7, emissive: NAP_COLOUR[nap], emissiveIntensity: 0 })
     );
     mat.position.y = 0.065;
     const model = new THREE.Group();
-    model.add(body, head, tail);
-    model.scale.setScalar(1.42);
+    model.add(body, chest, ...paws, head, tail);
+    model.scale.setScalar(1.14);
     group.add(mat, model, badge, alarm, ring);
     group.position.set(at.x, 0, at.z);
     this.town.add(group);
-    this.cats.set(cell, { group, body, head, eyes, tail, badge, alarm, ring, mat, nap, asleep: false, trouble: false, doze: 0, zIn: grain(cell, 31), hop: 0 });
+    this.cats.set(cell, { group, body, chest, paws, head, eyes, glints, tail, badge, alarm, ring, mat, nap, asleep: false, trouble: false, doze: 0, zIn: grain(cell, 31), hop: 0 });
   }
 
   private digit(height: number): THREE.Texture {
@@ -639,9 +671,9 @@ export class TownStage {
     const walls = new THREE.MeshStandardMaterial({ color: pick(WALLS, height - 1, WALLS[0]), roughness: 0.85 });
     const tiles = new THREE.MeshStandardMaterial({ color: 0xe85f35, roughness: 0.7 });
     const windows = new THREE.MeshStandardMaterial({ color: 0x3559c7, roughness: 0.3, emissive: 0xffc247, emissiveIntensity: 0 });
-    const body = new THREE.Mesh(new RoundedBoxGeometry(0.78, tall, 0.78, 2, 0.05), walls);
+    const body = this.inked(new THREE.Mesh(new RoundedBoxGeometry(0.78, tall, 0.78, 2, 0.05), walls), 1.045);
     body.position.y = 0.05 + tall / 2;
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.66, 0.36, 4), tiles);
+    const roof = this.inked(new THREE.Mesh(new THREE.ConeGeometry(0.66, 0.36, 4), tiles), 1.07);
     roof.rotation.y = Math.PI / 4;
     roof.position.y = 0.05 + tall + 0.17;
     const panes: THREE.BufferGeometry[] = [];
@@ -826,16 +858,59 @@ export class TownStage {
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
-    // Far enough back that the square and the sun's road fit the width; then tipped so the square
-    // sits in the lower part of the picture with sky above it for the noon sun.
-    const half = Math.tan((FIELD_OF_VIEW * Math.PI) / 360);
-    const across = this.size + 2.25;
-    const tallness = this.size * 1.12 + 2.3;
-    const distance = Math.max(across / (2 * half * this.camera.aspect), tallness / (2 * half));
-    const lookAt = new THREE.Vector3(0, 0.25 + this.size * 0.13, -this.size * 0.07);
-    this.camera.position.set(0, lookAt.y + Math.sin(LOOK_DOWN) * distance, lookAt.z + Math.cos(LOOK_DOWN) * distance);
-    this.camera.lookAt(lookAt);
     this.camera.updateProjectionMatrix();
+
+    // Everything that has to be in the picture: the slab, the tallest house and a cat's badge in
+    // the back row, the corner trees, and the sun at each end and at the top of its arc.
+    const n = this.size;
+    const edge = n / 2 + 0.6;
+    const noon = this.sunAt(1);
+    const morning = this.sunAt(0);
+    const must = [
+      new THREE.Vector3(-edge, -1.3, edge),
+      new THREE.Vector3(edge, -1.3, edge),
+      new THREE.Vector3(-edge, 0.2, edge),
+      new THREE.Vector3(edge, 0.2, edge),
+      new THREE.Vector3(-edge, 0.95, -edge),
+      new THREE.Vector3(edge, 0.95, -edge),
+      new THREE.Vector3(-n / 2 + 0.5, 1.95, -n / 2 + 0.5),
+      new THREE.Vector3(n / 2 - 0.5, 1.95, -n / 2 + 0.5),
+      new THREE.Vector3(0, noon.y + 0.6, noon.z),
+      new THREE.Vector3(morning.x + 0.6, morning.y + 0.5, morning.z),
+      new THREE.Vector3(-morning.x - 0.6, morning.y + 0.5, morning.z),
+    ];
+    const half = Math.tan((FIELD_OF_VIEW * Math.PI) / 360);
+    const lookAt = new THREE.Vector3(0, 0.5, 0);
+    const right = new THREE.Vector3();
+    const up = new THREE.Vector3();
+    const seen = new THREE.Vector3();
+    let distance = n * 3 + 8;
+    // Perspective makes this not quite linear, so home in on it over a few passes.
+    for (let pass = 0; pass < 10; pass++) {
+      this.camera.position.set(lookAt.x, lookAt.y + Math.sin(LOOK_DOWN) * distance, lookAt.z + Math.cos(LOOK_DOWN) * distance);
+      this.camera.lookAt(lookAt);
+      this.camera.updateMatrixWorld();
+      let left = Infinity;
+      let rightmost = -Infinity;
+      let low = Infinity;
+      let high = -Infinity;
+      for (const point of must) {
+        seen.copy(point).project(this.camera);
+        left = Math.min(left, seen.x);
+        rightmost = Math.max(rightmost, seen.x);
+        low = Math.min(low, seen.y);
+        high = Math.max(high, seen.y);
+      }
+      // The picture runs from -1 to 1 each way. Leave a sliver of margin.
+      const grow = Math.max(rightmost - left, high - low) / 1.94;
+      right.setFromMatrixColumn(this.camera.matrixWorld, 0);
+      up.setFromMatrixColumn(this.camera.matrixWorld, 1);
+      lookAt.addScaledVector(right, ((left + rightmost) / 2) * distance * half * this.camera.aspect);
+      lookAt.addScaledVector(up, ((low + high) / 2) * distance * half);
+      distance *= grow;
+    }
+    this.camera.position.set(lookAt.x, lookAt.y + Math.sin(LOOK_DOWN) * distance, lookAt.z + Math.cos(LOOK_DOWN) * distance);
+    this.camera.lookAt(lookAt);
     this.camera.updateMatrixWorld();
     this.sparkPaint.uniforms['uScale'] = { value: (height * this.renderer.getPixelRatio()) / (2 * half) };
   }
@@ -891,7 +966,7 @@ export class TownStage {
     const sunSpot = this.sunAt(this.day);
     this.sun.position.copy(sunSpot);
     this.sunRays.material.rotation = this.clock * 0.25 * lively;
-    this.sunGlow.scale.setScalar(2.2 + Math.sin(this.clock * 2) * 0.1 * lively);
+    this.sunGlow.scale.setScalar(1.8 + Math.sin(this.clock * 2) * 0.08 * lively);
     const lower = LIGHT[Math.min(1, Math.floor(this.day))] ?? LIGHT[0];
     const upper = LIGHT[Math.min(2, Math.floor(this.day) + 1)] ?? LIGHT[2];
     const blend = this.day - Math.min(1, Math.floor(this.day));
@@ -899,7 +974,8 @@ export class TownStage {
     this.sunLight.intensity = lerp(lower.power, upper.power, blend);
     this.skyLight.color.setHex(lower.sky).lerp(new THREE.Color(upper.sky), blend);
     this.skyLight.groundColor.setHex(lower.ground).lerp(new THREE.Color(upper.ground), blend);
-    this.sunLight.position.set(sunSpot.x * 3, sunSpot.y * 3 + 7, sunSpot.z * 3);
+    const turn = (this.day * Math.PI) / 2;
+    this.sunLight.position.set(Math.cos(turn) * 8, 7 + Math.sin(turn) * 5, 3.5 - Math.sin(turn) * 7);
     this.sunLight.target.position.set(0, 0, 0);
     // In the evening the windows light up.
     const lamps = Math.max(0, this.day - 1.4) / 0.6;
@@ -975,14 +1051,23 @@ export class TownStage {
     view.doze += ((view.asleep ? 1 : 0) - view.doze) * Math.min(1, dt * (this.reducedMotion ? 60 : 7));
     const d = view.doze;
     const breath = Math.sin(this.clock * (view.asleep ? 2 : 3.4) + cell) * 0.012 * lively;
-    // Sitting up, or curled into a loaf with its head down.
-    view.body.scale.set(lerp(0.2, 0.28, d), lerp(0.25, 0.15, d) + breath, lerp(0.19, 0.24, d));
-    view.body.position.set(0, 0.05 + lerp(0.25, 0.15, d), 0);
-    view.head.position.set(lerp(0, 0.13, d), 0.05 + lerp(0.56, 0.2, d), lerp(0.05, 0.2, d));
-    view.head.rotation.z = lerp(Math.sin(this.clock * 0.9 + cell) * 0.08 * lively, -0.5, d);
-    for (const eye of view.eyes) eye.scale.y = lerp(0.04, 0.006, d);
-    view.tail.rotation.z = lerp(-0.5 + Math.sin(this.clock * 2.6 + cell) * 0.35 * lively, -1.45, d);
-    view.tail.rotation.y = lerp(0, 0.9, d);
+    // Sitting up straight, or curled into a loaf with its head down on its paws.
+    view.body.scale.set(lerp(0.2, 0.29, d), lerp(0.24, 0.15, d) + breath, lerp(0.19, 0.25, d));
+    view.body.position.set(0, 0.05 + lerp(0.24, 0.15, d), 0);
+    view.chest.position.set(0, 0.05 + 0.25, 0.135);
+    view.chest.scale.set(0.115 * (1 - d), 0.14 * (1 - d), 0.07 * (1 - d));
+    view.paws.forEach((paw, index) => {
+      const side = index === 0 ? -1 : 1;
+      paw.position.set(lerp(side * 0.08, 0.1 + side * 0.07, d), 0.05 + lerp(0.045, 0.05, d), lerp(0.17, 0.26, d));
+    });
+    view.head.position.set(lerp(0, 0.12, d), 0.05 + lerp(0.61, 0.21, d), lerp(0.04, 0.2, d));
+    view.head.rotation.z = lerp(Math.sin(this.clock * 0.9 + cell) * 0.07 * lively, -0.42, d);
+    view.head.rotation.x = lerp(0, 0.3, d);
+    for (const eye of view.eyes) eye.scale.y = lerp(0.048, 0.006, d);
+    for (const glint of view.glints) glint.scale.setScalar(0.012 * (1 - d));
+    view.tail.rotation.z = lerp(-0.55 + Math.sin(this.clock * 2.6 + cell) * 0.32 * lively, -1.52, d);
+    view.tail.rotation.y = lerp(0, 2.2, d);
+    view.tail.position.set(lerp(0.14, 0.2, d), lerp(0.1, 0.09, d), lerp(-0.13, 0.02, d));
 
     // A cat in trouble hops and shows an exclamation mark; its tile gets a ring.
     view.hop = Math.max(0, view.hop - dt * 1.6);
@@ -993,11 +1078,13 @@ export class TownStage {
     view.ring.visible = view.trouble;
     view.ring.scale.setScalar(1 + Math.sin(this.clock * 6) * 0.07 * lively);
 
-    // The badge says when this cat naps. It is bright when that is the time on show.
+    // The badge over its head says when this cat naps. It is bright when that is the time on show,
+    // and it comes down with the cat's head when the cat lies down.
     const onDuty = view.nap === this.time;
-    const want = view.asleep ? 0.75 : onDuty ? 1 : 0.7;
+    const want = view.asleep ? 0.8 : onDuty ? 1 : 0.75;
     view.badge.material.opacity += (want - view.badge.material.opacity) * Math.min(1, dt * 8);
-    view.badge.scale.setScalar((onDuty && !view.asleep ? 0.56 + Math.sin(this.clock * 4) * 0.025 * lively : 0.44) * (this.size > 5 ? 1.1 : 1));
+    view.badge.position.y = lerp(1.26, 0.74, d);
+    view.badge.scale.setScalar(onDuty && !view.asleep ? 0.4 + Math.sin(this.clock * 4) * 0.02 * lively : 0.32);
     // The mat glows when it is this cat's time and it is still awake.
     if (view.mat.material instanceof THREE.MeshStandardMaterial)
       view.mat.material.emissiveIntensity = onDuty && !view.asleep ? 0.35 + Math.sin(this.clock * 4) * 0.2 * lively : 0;
@@ -1006,7 +1093,7 @@ export class TownStage {
       view.zIn -= dt;
       if (view.zIn <= 0) {
         view.zIn = 0.85 + grain(cell, Math.floor(this.clock)) * 0.5;
-        this.snore(view.group.position.x - 0.1, 0.62, view.group.position.z);
+        this.snore(view.group.position.x + 0.2, 0.55, view.group.position.z);
       }
     }
   }
@@ -1015,12 +1102,13 @@ export class TownStage {
     view.open += ((view.lit ? 1 : 0) - view.open) * Math.min(1, dt * (this.reducedMotion ? 60 : 6));
     view.pop = Math.max(0, view.pop - dt * 1.4);
     const o = view.open;
-    const burst = Math.sin(view.pop * Math.PI) * 0.5 + this.calm * 0.12;
-    view.head.scale.setScalar(lerp(0.7, 1, o) + burst);
-    // In the sun the flower looks up at the viewer; in shade it droops.
-    view.head.rotation.x = lerp(1.25, 0.55, o) + Math.sin(this.clock * 1.8 + view.group.position.x) * 0.06 * lively;
-    view.head.position.y = lerp(0.44, 0.52, o);
-    view.petals.color.copy(view.colour).lerp(new THREE.Color(0x9aa0b5), 1 - o);
+    const burst = Math.sin(view.pop * Math.PI) * 0.5 + this.calm * 0.1;
+    view.head.scale.setScalar(lerp(0.72, 1, o) + burst);
+    // In the sun the flower turns its face up to the player; in shade it hangs its head.
+    view.head.rotation.x = lerp(1.75, 0.7, o) + Math.sin(this.clock * 1.8 + view.group.position.x) * 0.06 * lively;
+    view.head.position.y = lerp(0.5, 0.58, o);
+    view.head.position.z = lerp(0.1, 0.03, o);
+    view.petals.color.copy(view.colour).lerp(new THREE.Color(0x9aa0b5), (1 - o) * 0.8);
     view.ring.visible = view.trouble;
     view.ring.scale.setScalar(1 + Math.sin(this.clock * 6) * 0.07 * lively);
   }

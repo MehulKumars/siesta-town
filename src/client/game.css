@@ -1107,3 +1107,76 @@ body:has(.app[data-time='pm']) {
   fill: var(--shade);
   fill-opacity: 0.55;
 }
+
+/* ---------- more room for the town ---------- */
+/* How many cats are asleep and flowers lit: two small chips on the corner of the town itself. */
+.board-wrap .counts {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  z-index: 2;
+  gap: 6px;
+  pointer-events: none;
+  font-weight: 750;
+  font-size: 14px;
+}
+.board-wrap .count {
+  height: 30px;
+  padding: 0 9px 0 6px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 2px 0 rgba(27, 39, 102, 0.14);
+}
+.board-wrap .count svg {
+  width: 19px;
+  height: 19px;
+}
+/* A tick on a time button once that time of day is sorted. */
+.toggle button {
+  position: relative;
+}
+.toggle button.sorted::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  right: -3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ok)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.500 8.500l3 3 6-6.500' fill='none' stroke='%23fff' stroke-width='2.600' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 14px no-repeat;
+  box-shadow: 0 0 0 2px #fff;
+}
+.tray-row {
+  height: 74px;
+}
+.slot {
+  height: 68px;
+}
+.coach {
+  min-height: 0;
+  padding: 8px 13px;
+  font-size: 15px;
+  line-height: 1.32;
+}
+header {
+  min-height: 44px;
+}
+.titles h1 {
+  margin-top: 2px;
+  font-size: 20px;
+}
+.titles p {
+  margin-top: 0;
+  font-size: 14px;
+}
+
+/* The counts sit under the front corner of the square, out of the way of the sun. */
+.board-wrap .counts {
+  top: auto;
+  bottom: 0;
+}
+.app[data-sheet='result'] .board-wrap .counts {
+  display: none;
+}

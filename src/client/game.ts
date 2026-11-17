@@ -340,20 +340,14 @@ function renderTray(): void {
 }
 
 function renderStatus(result: Evaluation): void {
-  const suns = byId('suns', HTMLDivElement);
-  suns.replaceChildren();
-  for (const t of TIMES) {
+  // Each time button gets a tick once that time of day is sorted: its cats asleep, no flower in its shade.
+  document.querySelectorAll('#toggle button').forEach((b, index) => {
+    const t = TIMES[index];
+    if (!t) return;
     const ok = result.allPlaced && result.timeOk[t];
-    const span = document.createElement('span');
-    span.className = `sun-check t-${t}${ok ? ' ok' : ''}`;
-    span.innerHTML = `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">${
-      ok
-        ? '<path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>'
-        : '<circle cx="8" cy="8" r="2.6" fill="currentColor"/>'
-    }</svg>`;
-    span.setAttribute('aria-label', copy.timeDone(copy.timeLabel[t], ok));
-    suns.appendChild(span);
-  }
+    b.classList.toggle('sorted', ok);
+    b.setAttribute('aria-label', copy.timeDone(copy.timeLabel[t], ok));
+  });
   const parts = [
     `<span class="count" aria-label="${copy.catsAsleep}">${catIconSvg}${result.asleepCount}/${result.cats.length}</span>`,
   ];
@@ -457,7 +451,7 @@ function fitBoard(): void {
       )
       .reduce((sum, c) => sum + c.getBoundingClientRect().height, 0);
     const gaps = (parseFloat(cs.rowGap) || 8) * (kids.length - 1);
-    size = Math.min(innerW * 1.22, innerH - others - gaps);
+    size = Math.min(innerW * 1.45, innerH - others - gaps);
   }
   document.documentElement.style.setProperty(
     '--board',
