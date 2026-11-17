@@ -20,10 +20,14 @@ export function cellOrigin(
   size: number,
   cell: number
 ): { x: number; y: number } {
-  return { x: (cell % size) * CELL, y: Math.floor(cell / size) * CELL };
+  // Row 0 is drawn at the bottom, nearest the viewer, the same way round as the 3D town.
+  return {
+    x: (cell % size) * CELL,
+    y: (size - 1 - Math.floor(cell / size)) * CELL,
+  };
 }
 
-/** A small square "board" with the sun on the edge it shines from: right in the morning, bottom at noon, left in the evening. */
+/** A small square "board" with the sun on the edge it shines from: right in the morning, top at noon, left in the evening. */
 export function sunBadge(
   parent: Element,
   time: TimeOfDay,
@@ -45,7 +49,7 @@ export function sunBadge(
     },
     g
   );
-  const pos = { am: [w - 7, h / 2], noon: [w / 2, h - 7], pm: [7, h / 2] }[
+  const pos = { am: [w - 7, h / 2], noon: [w / 2, 7], pm: [7, h / 2] }[
     time
   ];
   svgEl(
@@ -64,7 +68,7 @@ export function sunBadge(
 }
 
 export function sunIconSvg(time: TimeOfDay, size = 20): string {
-  const pos = { am: [17, 10], noon: [10, 17], pm: [3, 10] }[time];
+  const pos = { am: [17, 10], noon: [10, 3], pm: [3, 10] }[time];
   return `<svg viewBox="0 0 20 20" width="${size}" height="${size}" aria-hidden="true"><rect x="2.5" y="2.5" width="15" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="${pos[0]}" cy="${pos[1]}" r="3.6" fill="#e0a91f" stroke="currentColor" stroke-width="1.6"/></svg>`;
 }
 
@@ -74,7 +78,7 @@ export function drawHouse(parent: Element, height: number): SVGGElement {
     'polygon',
     {
       points: '12,38 50,12 88,38',
-      fill: 'var(--shade)',
+      fill: '#e85f35',
       stroke: 'var(--ink)',
       'stroke-width': 5,
       'stroke-linejoin': 'round',
@@ -112,8 +116,15 @@ export function drawHouse(parent: Element, height: number): SVGGElement {
   return g;
 }
 
+/** Wall colours by height, the same as the 3D houses in town.ts. */
+const HOUSE_WALLS = ['#fffaf0', '#ffe9c9', '#d6ebfb', '#dff3d0', '#fbe1ee'];
+
+/** A house for the tray: taller for a taller house, terracotta roof, its height written on the wall. */
 export function houseSvg(height: number): string {
-  return `<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="12,38 50,12 88,38" fill="#2f49a6" stroke="#1b2766" stroke-width="5" stroke-linejoin="round"/><rect x="18" y="34" width="64" height="54" rx="7" fill="#fff" stroke="#1b2766" stroke-width="5"/><text x="50" y="75" text-anchor="middle" font-size="34" font-weight="800" fill="#1b2766">${height}</text></svg>`;
+  const wall = HOUSE_WALLS[(height - 1) % HOUSE_WALLS.length] ?? '#fffaf0';
+  const body = 22 + height * 11;
+  const top = 92 - body;
+  return `<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="13,${top + 5} 50,${top - 20} 87,${top + 5}" fill="#e85f35" stroke="#1b2766" stroke-width="4.5" stroke-linejoin="round"/><rect x="20" y="${top}" width="60" height="${body}" rx="5" fill="${wall}" stroke="#1b2766" stroke-width="4.5"/><text x="50" y="${top + body / 2 + 10}" text-anchor="middle" font-size="27" font-weight="800" fill="#1b2766">${height}</text></svg>`;
 }
 
 export function drawCat(
@@ -342,7 +353,7 @@ export function drawShadowDiagram(
   const edge = m / 2 + 4;
   const pos = {
     am: [span + edge, span / 2],
-    noon: [span / 2, span + edge],
+    noon: [span / 2, -edge],
     pm: [-edge, span / 2],
   }[time];
   const sun = svgEl(

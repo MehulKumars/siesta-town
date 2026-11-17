@@ -69,6 +69,20 @@ export const copy = {
 
   // Lessons
   skipLessons: 'Skip',
+  // Practice towns: always there beside the daily town.
+  townsTitle: 'More towns',
+  townsLede:
+    'Fifteen towns to play whenever you like, from gentle to tricky. Today’s town is the one that counts for your streak.',
+  tierName: { 1: 'Gentle', 2: 'Steady', 3: 'Tricky' },
+  tierHint: { 1: '5 by 5, two or three houses', 2: '6 by 6, three houses', 3: 'Up to 7 by 7, four houses' },
+  practiceSubtitle: (n: number, tier: string) => `Practice town ${n}, ${tier.toLowerCase()}`,
+  practiceTown: (n: number, title: string, solved: boolean) =>
+    `Town ${n}, ${title}${solved ? ', solved' : ''}`,
+  practiceSolved: (done: number, total: number) => `${done} of ${total} solved`,
+  practiceDoneBody: 'Practice towns have no clock and no streak. They are here whenever you want another.',
+  nextPractice: 'Next town',
+  allTowns: 'All towns',
+  backToToday: 'Today’s town',
   lessonTitle: (n: number) => `Lesson ${n} of 3`,
   lessonSubtitle: 'How shadows work',
   lessonStep: (id: LessonId, sawNoon: boolean, rule: NoonRule): string => {
@@ -78,8 +92,8 @@ export const copy = {
       if (!sawNoon)
         return 'This cat naps at noon. Tap Noon to see where shadows fall.';
       return rule === 'one'
-        ? 'At noon every shadow falls one tile up. Put the cat in the shade.'
-        : 'At noon shadows fall up, half as long. Put the cat in the shade.';
+        ? 'At noon the sun is high behind the town, so every shadow falls one tile towards you.'
+        : 'At noon the sun is high behind the town, so shadows fall towards you, half as long.';
     }
     return 'Flowers need sun all day. Shade the evening cat, but keep the flower out of every shadow.';
   },
@@ -88,10 +102,10 @@ export const copy = {
       return ['That’s the idea.', 'Morning sun throws shadows to the left.'];
     if (id === 'lesson-2') {
       return [
-        'Noon shadows fall up.',
+        'Noon shadows fall towards you.',
         rule === 'one'
-          ? 'At noon the sun is high in the south, so every house shades just the tile above it.'
-          : 'At noon the sun is high in the south, so shadows fall up and are half as long.',
+          ? 'At noon the sun is high behind the town, so every house shades just the tile in front of it.'
+          : 'At noon the sun is high behind the town, so shadows fall towards you and are half as long.',
       ];
     }
     return [
@@ -134,7 +148,7 @@ export const copy = {
       : 'Morning and evening shadows are as long as the house is tall. At noon they are half as long.',
   helpDiagram: {
     am: 'Sun on the right, shade to the left',
-    noon: 'Sun to the south, shade goes up',
+    noon: 'Sun high at the back, shade falls towards you',
     pm: 'Sun on the left, shade to the right',
   } satisfies Record<TimeOfDay, string>,
   helpBack: 'Back to the town',

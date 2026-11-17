@@ -33,6 +33,7 @@ import type {
 import { MIN_CROWD_FOR_MAP } from '../shared/community.ts';
 import { formatClock, longDate } from '../shared/dates.ts';
 import { LESSONS } from '../shared/lessons.ts';
+import { PRACTICE, PRACTICE_NOON_RULE } from '../shared/practice.ts';
 import {
   REPORT_CATEGORIES,
   isReportCategory,
@@ -44,13 +45,8 @@ import {
   CELL,
   catIconSvg,
   cellOrigin,
-  drawCat,
-  drawFlower,
-  drawGround,
-  drawHouse,
   drawShadowDiagram,
   drawTownPreview,
-  drawWell,
   flowerIconSvg,
   houseSvg,
   sunIconSvg,
@@ -69,15 +65,9 @@ import {
 } from './net.ts';
 import * as journey from './journey.ts';
 import { isMuted, setMuted, sound, unlockAudio } from './sound.ts';
+import { TownStage } from './town.ts';
 
-/** Room around the board for the sun and its path. */
-const MARGIN = 56;
 const IDLE_MS = 20_000;
-const SUN_ANGLE: Record<TimeOfDay, number> = {
-  am: 0,
-  noon: Math.PI / 2,
-  pm: Math.PI,
-};
 const reducedMotion = window.matchMedia(
   '(prefers-reduced-motion: reduce)'
 ).matches;
@@ -98,7 +88,10 @@ type Drag = {
   target: number | null;
 };
 type Mode =
-  { kind: 'loading' } | { kind: 'town' } | { kind: 'lesson'; index: number };
+  | { kind: 'loading' }
+  | { kind: 'town' }
+  | { kind: 'lesson'; index: number }
+  | { kind: 'practice'; index: number };
 
 type State = {
   init: InitResponse | null;
@@ -127,7 +120,6 @@ type State = {
     playedMs: number;
     firstTile: number | null;
   } | null;
-  sunAngle: number;
   /** Where the first house of today's town landed: feeds "where everyone started". */
   firstTile: number | null;
   /** True while a Reddit action (post, join, report) is in flight, so double taps do nothing. */
@@ -156,7 +148,6 @@ const state: State = {
   idle: 'none',
   justPlaced: -1,
   parkedTown: null,
-  sunAngle: 0,
   firstTile: null,
   busy: false,
 };
@@ -171,19 +162,8 @@ function byId<T extends Element>(
 }
 
 const app = byId('app', HTMLDivElement);
-const svg = byId('board', SVGSVGElement);
-const layers: Record<
-  'shadow' | 'preview' | 'items' | 'houses' | 'sun',
-  SVGGElement | null
-> = {
-  shadow: null,
-  preview: null,
-  items: null,
-  houses: null,
-  sun: null,
-};
-let catEls = new Map<number, SVGGElement>();
-let flowerEls = new Map<number, SVGGElement>();
+/** The town itself: a 3D model that shows whatever the rules say (see town.ts). */
+const stage = new TownStage(byId('board', HTMLCanvasElement), reducedMotion);
 
 function puzzle(): Puzzle {
   if (!state.town) throw new Error('No town loaded');
@@ -191,11 +171,6 @@ function puzzle(): Puzzle {
 }
 function noonRule() {
   return state.town?.noonRule ?? 'one';
-}
-function layer(name: keyof typeof layers): SVGGElement {
-  const g = layers[name];
-  if (!g) throw new Error(`Board layer ${name} missing`);
-  return g;
 }
 function inLesson(): boolean {
   return state.mode.kind === 'lesson';
@@ -260,196 +235,58 @@ document.addEventListener('visibilitychange', () => {
 
 // ---------- board ----------
 function buildBoard(): void {
-  const p = puzzle();
-  const span = p.size * CELL;
-  svg.replaceChildren();
-  svg.setAttribute(
-    'viewBox',
-    `${-MARGIN} ${-MARGIN} ${span + MARGIN * 2} ${span + MARGIN * 2}`
-  );
-  const defs = svgEl('defs', {}, svg);
-  for (const [id, base, line] of [
-    ['hatch', 0.28, 0.95],
-    ['hatch-preview', 0.14, 0.45],
-  ] as const) {
-    const pattern = svgEl(
-      'pattern',
-      {
-        id,
-        width: 16,
-        height: 16,
-        patternUnits: 'userSpaceOnUse',
-        patternTransform: 'rotate(45)',
-      },
-      defs
-    );
-    svgEl(
-      'rect',
-      { width: 16, height: 16, fill: 'var(--shade)', 'fill-opacity': base },
-      pattern
-    );
-    svgEl(
-      'rect',
-      { width: 6, height: 16, fill: 'var(--shade)', 'fill-opacity': line },
-      pattern
-    );
-  }
-  // The sun's path through the day: east (right) in the morning, south (below) at noon, west (left) in the evening.
-  const radius = span / 2 + MARGIN / 2;
-  svgEl(
-    'path',
-    {
-      class: 'sun-path',
-      d: `M ${span / 2 + radius} ${span / 2} A ${radius} ${radius} 0 0 1 ${span / 2 - radius} ${span / 2}`,
-    },
-    svg
-  );
-  drawGround(svg, p.size);
-  const wells = svgEl('g', {}, svg);
-  layers.shadow = svgEl('g', {}, svg);
-  layers.preview = svgEl('g', {}, svg);
-  layers.items = svgEl('g', {}, svg);
-  layers.houses = svgEl('g', {}, svg);
-  svgEl(
-    'rect',
-    { class: 'frame', x: 0, y: 0, width: span, height: span, rx: 4 },
-    svg
-  );
-  layers.sun = svgEl('g', { class: 'sun-marker' }, svg);
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
-    svgEl(
-      'line',
-      {
-        x1: Math.cos(a) * 19,
-        y1: Math.sin(a) * 19,
-        x2: Math.cos(a) * 27,
-        y2: Math.sin(a) * 27,
-        stroke: 'var(--ink)',
-        'stroke-width': 4,
-        'stroke-linecap': 'round',
-      },
-      layers.sun
-    );
-  }
-  svgEl(
-    'circle',
-    { r: 14, fill: 'var(--sun-deep)', stroke: 'var(--ink)', 'stroke-width': 4 },
-    layers.sun
-  );
-
-  catEls = new Map();
-  flowerEls = new Map();
-  for (const cell of p.wells) drawWell(wells, p.size, cell);
-  for (const cell of p.flowers)
-    flowerEls.set(cell, drawFlower(layer('items'), p.size, cell));
-  for (const cat of p.cats)
-    catEls.set(cat.cell, drawCat(layer('items'), p.size, cat.cell, cat.nap));
-  state.sunAngle = SUN_ANGLE[state.time];
+  stage.load(puzzle(), state.time);
+  app.dataset.time = state.time;
 }
 
 function renderShadows({ sweep = false, skip = -1 } = {}): void {
   const p = puzzle();
-  const target = layer('shadow');
-  target.replaceChildren();
+  // Each shaded tile, with how long to wait before it darkens: shade spreads outwards from its house.
   const delays = new Map<number, number>();
   state.placements.forEach((cell, i) => {
     const height = p.heights[i];
     if (cell === IN_TRAY || i === skip || height === undefined) return;
     castShadow(p.size, cell, height, state.time, noonRule()).forEach((s, k) => {
-      delays.set(s, Math.min(delays.get(s) ?? Infinity, k * 55));
+      delays.set(s, Math.min(delays.get(s) ?? Infinity, 180 + k * 70));
     });
   });
-  const rects: SVGRectElement[] = [];
-  for (const [s, delay] of delays) {
-    const { x, y } = cellOrigin(p.size, s);
-    const r = svgEl(
-      'rect',
-      { class: 'shadow', x, y, width: CELL, height: CELL },
-      target
-    );
-    if (sweep && !reducedMotion) r.style.transitionDelay = `${delay}ms`;
-    else r.style.transition = 'none';
-    rects.push(r);
-  }
-  const show = (): void => rects.forEach((r) => r.classList.add('on'));
-  if (sweep && !reducedMotion)
-    requestAnimationFrame(() => requestAnimationFrame(show));
-  else show();
+  stage.setShade(delays, sweep);
 }
 
 function renderHouses(skip = -1): void {
   const p = puzzle();
-  const target = layer('houses');
-  target.replaceChildren();
+  const standing: { i: number; cell: number; height: number }[] = [];
   state.placements.forEach((cell, i) => {
     const height = p.heights[i];
     if (cell === IN_TRAY || i === skip || height === undefined) return;
-    const { x, y } = cellOrigin(p.size, cell);
-    const g = svgEl('g', { transform: `translate(${x} ${y})` }, target);
-    const house = drawHouse(g, height);
-    if (state.selected?.from === 'board' && state.selected.i === i)
-      house.classList.add('selected');
-    if (state.justPlaced === i && !reducedMotion)
-      house.classList.add('just-placed');
+    standing.push({ i, cell, height });
   });
+  stage.setHouses(
+    standing,
+    state.selected?.from === 'board' ? state.selected.i : -1,
+    state.justPlaced
+  );
   state.justPlaced = -1;
 }
 
 function renderPreview(cell: number | null, i: number): void {
-  const target = layer('preview');
-  target.replaceChildren();
   const p = puzzle();
   const height = p.heights[i];
-  if (cell === null || height === undefined) return;
-  for (const s of castShadow(p.size, cell, height, state.time, noonRule())) {
-    const { x, y } = cellOrigin(p.size, s);
-    svgEl(
-      'rect',
-      { class: 'preview-shadow', x, y, width: CELL, height: CELL },
-      target
-    );
+  if (cell === null || height === undefined) {
+    stage.setPreview(null, 1, []);
+    return;
   }
-  const { x, y } = cellOrigin(p.size, cell);
-  drawHouse(
-    svgEl('g', { transform: `translate(${x} ${y})`, opacity: 0.9 }, target),
-    height
+  stage.setPreview(
+    cell,
+    height,
+    castShadow(p.size, cell, height, state.time, noonRule())
   );
 }
 
-function placeSun(angle: number): void {
-  const span = puzzle().size * CELL;
-  const radius = span / 2 + MARGIN / 2;
-  const x = span / 2 + Math.cos(angle) * radius;
-  const y = span / 2 + Math.sin(angle) * radius;
-  layer('sun').setAttribute('transform', `translate(${x} ${y}) scale(0.7)`);
-}
-
-let sunAnimation = 0;
+/** Moves the sun to the time on show. The page's sky follows through `data-time`. */
 function renderSun(animate = false): void {
-  const target = SUN_ANGLE[state.time];
-  cancelAnimationFrame(sunAnimation);
-  if (!animate || reducedMotion) {
-    state.sunAngle = target;
-    placeSun(target);
-    return;
-  }
-  const from = state.sunAngle;
-  const start = performance.now();
-  const step = (now: number): void => {
-    const t = Math.min(1, (now - start) / 420);
-    const eased = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
-    state.sunAngle = from + (target - from) * eased;
-    placeSun(state.sunAngle);
-    if (t < 1) sunAnimation = requestAnimationFrame(step);
-  };
-  sunAnimation = requestAnimationFrame(step);
-}
-
-/** Cats that don't nap at the selected time fade back, so switching the time shows whose turn it is. */
-function renderDuty(): void {
-  for (const cat of puzzle().cats)
-    catEls.get(cat.cell)?.classList.toggle('off-duty', cat.nap !== state.time);
+  stage.setTime(state.time, animate);
+  app.dataset.time = state.time;
 }
 
 function renderToggle(): void {
@@ -508,11 +345,11 @@ function renderStatus(result: Evaluation): void {
   for (const t of TIMES) {
     const ok = result.allPlaced && result.timeOk[t];
     const span = document.createElement('span');
-    span.className = `sun-check${ok ? ' ok' : ''}`;
-    span.innerHTML = `${sunIconSvg(t, 22)}<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">${
+    span.className = `sun-check t-${t}${ok ? ' ok' : ''}`;
+    span.innerHTML = `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">${
       ok
-        ? '<path d="M3 8.5l3 3 7-7" fill="none" stroke="#1f7a4d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'
-        : '<circle cx="8" cy="8" r="3" fill="rgba(27,39,102,.25)"/>'
+        ? '<path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>'
+        : '<circle cx="8" cy="8" r="2.6" fill="currentColor"/>'
     }</svg>`;
     span.setAttribute('aria-label', copy.timeDone(copy.timeLabel[t], ok));
     suns.appendChild(span);
@@ -534,19 +371,18 @@ function renderCreatures(result: Evaluation): void {
   const shadeNow = trouble
     ? shadeByTime(puzzle(), state.placements, noonRule())[state.time]
     : null;
-  for (const c of result.cats) {
-    const el = catEls.get(c.cell);
-    el?.classList.toggle('asleep', c.asleep);
-    el?.classList.toggle(
-      'trouble',
-      trouble && !c.asleep && c.nap === state.time
-    );
-  }
-  for (const f of result.flowers) {
-    const el = flowerEls.get(f.cell);
-    el?.classList.toggle('wilted', !f.lit);
-    el?.classList.toggle('trouble', Boolean(shadeNow?.has(f.cell)));
-  }
+  stage.setCreatures(
+    result.cats.map((c) => ({
+      cell: c.cell,
+      asleep: c.asleep,
+      trouble: trouble && !c.asleep && c.nap === state.time,
+    })),
+    result.flowers.map((f) => ({
+      cell: f.cell,
+      lit: f.lit,
+      trouble: Boolean(shadeNow?.has(f.cell)),
+    }))
+  );
 }
 
 /** One sentence that always says what to do next. */
@@ -621,7 +457,7 @@ function fitBoard(): void {
       )
       .reduce((sum, c) => sum + c.getBoundingClientRect().height, 0);
     const gaps = (parseFloat(cs.rowGap) || 8) * (kids.length - 1);
-    size = Math.min(innerW, innerH - others - gaps);
+    size = Math.min(innerW * 1.22, innerH - others - gaps);
   }
   document.documentElement.style.setProperty(
     '--board',
@@ -635,7 +471,6 @@ function renderAll(): void {
   renderHouses();
   renderShadows();
   renderSun();
-  renderDuty();
   evaluateAndRender();
   fitBoard();
 }
@@ -645,14 +480,7 @@ const hand = byId('hand', HTMLDivElement);
 let handAnimation: Animation | null = null;
 
 function cellCenterOnScreen(cell: number): { x: number; y: number } | null {
-  const ctm = svg.getScreenCTM();
-  if (!ctm) return null;
-  const size = puzzle().size;
-  const pt = new DOMPoint(
-    (cell % size) * CELL + CELL / 2,
-    Math.floor(cell / size) * CELL + CELL / 2
-  ).matrixTransform(ctm);
-  return { x: pt.x, y: pt.y };
+  return stage.cellCenter(cell);
 }
 
 function showHand(slotIndex: number, cell: number): void {
@@ -758,7 +586,6 @@ function setTime(t: TimeOfDay): void {
   renderToggle();
   renderShadows({ sweep: true });
   renderSun(true);
-  renderDuty();
   evaluateAndRender();
 }
 
@@ -852,20 +679,11 @@ function describe(cell: number): string | null {
 
 // ---------- input: drag a house, or tap a house then a tile ----------
 function cellAt(clientX: number, clientY: number): number | null {
-  const ctm = svg.getScreenCTM();
-  if (!ctm) return null;
-  const p = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
-  const size = puzzle().size;
-  const c = Math.floor(p.x / CELL);
-  const r = Math.floor(p.y / CELL);
-  if (r < 0 || c < 0 || r >= size || c >= size) return null;
-  return r * size + c;
+  return stage.cellAt(clientX, clientY);
 }
 
 function cellPixels(): number {
-  const rect = svg.getBoundingClientRect();
-  const span = puzzle().size * CELL + MARGIN * 2;
-  return (Math.min(rect.width, rect.height) / span) * CELL;
+  return stage.cellPixels();
 }
 
 const ghost = byId('ghost', HTMLDivElement);
@@ -1042,30 +860,36 @@ async function playSiesta(result: Evaluation): Promise<void> {
   const times = state.lesson?.lockTime ? [state.lesson.lockTime] : TIMES;
   state.selected = null;
   renderTray();
-  for (const el of catEls.values()) el.classList.remove('asleep', 'trouble');
-  await wait(150);
+  // Everyone wakes up, then the day runs through and each cat dozes off as its shade arrives.
+  const napping = new Set<number>();
+  const show = (): void =>
+    stage.setCreatures(
+      result.cats.map((c) => ({
+        cell: c.cell,
+        asleep: napping.has(c.cell),
+        trouble: false,
+      })),
+      result.flowers.map((f) => ({ cell: f.cell, lit: f.lit, trouble: false }))
+    );
+  show();
+  await wait(250);
   for (const t of times) {
     state.time = t;
     renderToggle();
     renderSun(true);
-    renderDuty();
     renderShadows({ sweep: true });
-    await wait(320);
+    await wait(620);
     for (const c of result.cats.filter((x) => x.nap === t)) {
-      catEls.get(c.cell)?.classList.add('asleep');
+      napping.add(c.cell);
+      show();
       sound.purr();
-      await wait(160);
+      await wait(260);
     }
-    await wait(120);
+    await wait(180);
   }
-  for (const el of catEls.values()) el.classList.remove('off-duty');
-  for (const el of flowerEls.values()) {
-    el.classList.remove('bloom');
-    void el.getBBox();
-    el.classList.add('bloom');
-  }
+  stage.celebrate();
   sound.chime();
-  await wait(450);
+  await wait(900);
 }
 
 async function runSiesta(result: Evaluation): Promise<void> {
@@ -1074,14 +898,16 @@ async function runSiesta(result: Evaluation): Promise<void> {
   state.solving = true;
   stopHand();
 
-  if (state.mode.kind === 'lesson') {
+  if (state.mode.kind === 'lesson' || state.mode.kind === 'practice') {
+    const mode = state.mode;
     await playSiesta(result);
     state.solving = false;
     state.solved = true;
     renderToggle();
     renderTray();
     evaluateAndRender();
-    showLessonDone(state.mode.index);
+    if (mode.kind === 'lesson') showLessonDone(mode.index);
+    else showPracticeDone(mode.index);
     return;
   }
 
@@ -1495,7 +1321,7 @@ function openSheet(sheet: HTMLElement): void {
   if (!isResult) byId('scrim', HTMLDivElement).classList.add('open');
   sheet.classList.add('open');
   if (isResult) {
-    setPostcard(state.mode.kind === 'town');
+    setPostcard(state.mode.kind !== 'lesson');
     // Screen readers land on the card itself; no focus ring jumps onto a button by surprise.
     sheet.tabIndex = -1;
     sheet.focus({ preventScroll: true });
@@ -1614,23 +1440,178 @@ function showBoard(
   renderAll();
 }
 
-function setHeader(title: string, subtitle: string, lesson: boolean): void {
+function setHeader(
+  title: string,
+  subtitle: string,
+  mode: 'town' | 'lesson' | 'practice'
+): void {
   byId('title', HTMLHeadingElement).textContent = title;
   byId('subtitle', HTMLParagraphElement).textContent = subtitle;
-  byId('skip-btn', HTMLButtonElement).hidden = !lesson;
-  app.dataset.mode = lesson ? 'lesson' : 'town';
+  // Lessons can be skipped. A practice town is left through the towns list or its result card.
+  const leave = byId('skip-btn', HTMLButtonElement);
+  leave.hidden = mode !== 'lesson';
+  leave.textContent = copy.skipLessons;
+  const towns = byId('towns-btn', HTMLButtonElement);
+  towns.hidden = mode === 'lesson';
+  towns.setAttribute('aria-label', copy.townsTitle);
+  app.dataset.mode = mode;
+}
+
+/** Sets today's town aside (with its clock) while the player does lessons or a practice town. */
+function parkTown(): void {
+  if (state.mode.kind !== 'town' || state.solved || !state.town) return;
+  pauseClock();
+  state.parkedTown = {
+    placements: [...state.placements],
+    playedMs: state.playedMs,
+    firstTile: state.firstTile,
+  };
+  void saveProgressNow();
+}
+
+// ---------- practice towns: fifteen towns in three tiers, there whenever the player wants more ----------
+function practiceSolved(): Set<string> {
+  try {
+    const saved: unknown = JSON.parse(local.get('practice') ?? '[]');
+    if (Array.isArray(saved))
+      return new Set(saved.filter((id) => typeof id === 'string'));
+  } catch {
+    // a corrupt save just means nothing is ticked
+  }
+  return new Set();
+}
+
+function startPractice(index: number): void {
+  const practice = PRACTICE[index];
+  const init = state.init;
+  if (!practice || !init) return;
+  parkTown();
+  state.mode = { kind: 'practice', index };
+  state.lesson = null;
+  pauseClock();
+  const standIn: PublicTown = {
+    date: init.town.date,
+    number: 0,
+    title: practice.title,
+    level: practice.tier,
+    band: 'Practice',
+    puzzle: practice.puzzle,
+    noonRule: PRACTICE_NOON_RULE,
+  };
+  setHeader(
+    practice.title,
+    copy.practiceSubtitle(index + 1, copy.tierName[practice.tier]),
+    'practice'
+  );
+  showBoard(
+    standIn,
+    practice.puzzle.heights.map(() => IN_TRAY),
+    null
+  );
+}
+
+function showPracticeDone(index: number): void {
+  const practice = PRACTICE[index];
+  if (!practice) return;
+  const solved = practiceSolved();
+  solved.add(practice.id);
+  local.set('practice', JSON.stringify([...solved]));
+  const sheet = byId('result-sheet', HTMLDivElement);
+  sheet.replaceChildren();
+  const h2 = document.createElement('h2');
+  h2.textContent = copy.asleep(practice.title);
+  const p = document.createElement('p');
+  p.textContent = copy.practiceDoneBody;
+  sheet.append(h2, p);
+  if (index + 1 < PRACTICE.length) {
+    sheet.append(
+      button(copy.nextPractice, 'primary', () => {
+        closeSheets();
+        startPractice(index + 1);
+      })
+    );
+  }
+  sheet.append(
+    button(copy.allTowns, 'secondary', () => {
+      closeSheets();
+      showTowns();
+    }),
+    button(copy.backToToday, 'link-btn', () => {
+      closeSheets();
+      enterTown();
+    })
+  );
+  openSheet(sheet);
+}
+
+/** The ladder of practice towns: three tiers, five towns each, ticked once solved. */
+function showTowns(): void {
+  const sheet = byId('towns-sheet', HTMLDivElement);
+  const solved = practiceSolved();
+  sheet.replaceChildren();
+  const h2 = document.createElement('h2');
+  h2.textContent = copy.townsTitle;
+  const lede = document.createElement('p');
+  lede.textContent = copy.townsLede;
+  sheet.append(closeButton(copy.helpBack), h2, lede);
+  for (const tier of [1, 2, 3] as const) {
+    const block = document.createElement('section');
+    block.className = 'tier';
+    const head = document.createElement('div');
+    head.className = 'tier-head';
+    const name = document.createElement('h3');
+    name.textContent = copy.tierName[tier];
+    const pips = document.createElement('span');
+    pips.className = 'pips';
+    pips.setAttribute('aria-hidden', 'true');
+    for (let i = 1; i <= 3; i++) {
+      const pip = document.createElement('i');
+      if (i <= tier) pip.className = 'on';
+      pips.append(pip);
+    }
+    const hint = document.createElement('span');
+    hint.className = 'tier-hint';
+    hint.textContent = copy.tierHint[tier];
+    head.append(name, pips, hint);
+    const row = document.createElement('div');
+    row.className = 'tier-towns';
+    PRACTICE.forEach((practice, index) => {
+      if (practice.tier !== tier) return;
+      const done = solved.has(practice.id);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = done ? 'town-node done' : 'town-node';
+      b.textContent = String(index + 1);
+      b.setAttribute('aria-label', copy.practiceTown(index + 1, practice.title, done));
+      b.addEventListener('click', () => {
+        closeSheets();
+        startPractice(index);
+      });
+      row.append(b);
+    });
+    block.append(head, row);
+    sheet.append(block);
+  }
+  const tally = document.createElement('p');
+  tally.className = 'note';
+  tally.textContent = copy.practiceSolved(
+    PRACTICE.filter((practice) => solved.has(practice.id)).length,
+    PRACTICE.length
+  );
+  sheet.append(tally);
+  if (state.mode.kind === 'practice') {
+    sheet.append(
+      button(copy.backToToday, 'secondary', () => {
+        closeSheets();
+        enterTown();
+      })
+    );
+  }
+  openSheet(sheet);
 }
 
 function startLessons(): void {
-  if (state.mode.kind === 'town' && !state.solved && state.town) {
-    pauseClock();
-    state.parkedTown = {
-      placements: [...state.placements],
-      playedMs: state.playedMs,
-      firstTile: state.firstTile,
-    };
-    void saveProgressNow();
-  }
+  parkTown();
   startLesson(0);
 }
 
@@ -1651,7 +1632,7 @@ function startLesson(index: number): void {
     puzzle: lesson.puzzle,
     noonRule: init.town.noonRule,
   };
-  setHeader(copy.lessonTitle(index + 1), copy.lessonSubtitle, true);
+  setHeader(copy.lessonTitle(index + 1), copy.lessonSubtitle, 'lesson');
   showBoard(
     standIn,
     lesson.puzzle.heights.map(() => IN_TRAY),
@@ -1718,7 +1699,7 @@ function enterTown(): void {
     init.isToday
       ? copy.townNumber(town.number, longDate(town.date))
       : copy.oldTown(town.number),
-    false
+    'town'
   );
   showBoard(town, placements, null);
   if (init.result) {
@@ -1734,6 +1715,10 @@ function enterTown(): void {
 byId('skip-btn', HTMLButtonElement).addEventListener('click', () => {
   stopHand();
   finishLessons();
+});
+byId('towns-btn', HTMLButtonElement).addEventListener('click', () => {
+  noteAction();
+  showTowns();
 });
 
 // ---------- start ----------
@@ -1779,5 +1764,13 @@ async function start(): Promise<void> {
   else enterTown();
   journey.appReady();
 }
+
+// A hook for automated play-throughs; harmless in production.
+Object.assign(window, {
+  siestaTest: {
+    cellCenter: (cell: number) => stage.cellCenter(cell),
+    state: () => ({ mode: state.mode.kind, time: state.time, solved: state.solved, placements: [...state.placements] }),
+  },
+});
 
 void start();

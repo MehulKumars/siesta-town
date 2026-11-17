@@ -1,8 +1,17 @@
 # PROGRESS.md: running status (agents update this at the end of every session)
 
-## Current phase
-Phases 1 and 2 are built (ahead of the plan's dates). Waiting on human playtests (Phase 0b) and phone checks.
-Next for the agent: Phase 3 (Town Builder by Dec 2, archive, art and sound polish).
+## Current phase (2026-11-17): Siesta in 2.5D
+The owner asked for Siesta to be improved "by a lot" after two other games (`../lungful`, `../sticky`) were tried.
+- [x] 3D town (`src/client/town.ts`): sun travelling over the square, light and sky by time of day, shade patches
+      that sweep, cats that curl up and snore, flowers that droop in shade, houses that drop in with dust
+- [x] Colour-coded nap times, restyled coach line, time buttons, status chips and tray
+- [x] "More towns": 15 practice towns in three tiers (`src/shared/practice.ts`, generated and solver-checked)
+- [x] 41 unit tests pass, typecheck and lint clean. Playwright (WebGL through SwiftShader): lesson, daily town,
+      practice towns, splash and help at 360×640, 390×844 and 1280×800; no page scroll, no console errors
+- [ ] Not yet run on Reddit (playtest) or on a real phone since the rebuild; frame rate on low-end phones unknown
+- [ ] Practice progress is in localStorage (wiped on app update); should move to Redis with the other settings
+- [ ] The inline splash and the "where everyone started" map are still flat 2D drawings (now flipped to match)
+- [ ] **Human:** look at the new art direction and the nap-time colours; sign off or redirect
 
 ## Done
 - Kit added and reviewed against the official Devpost pages (docs/sources/) and the live Devvit docs (2026-11-15).

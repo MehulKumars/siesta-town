@@ -49,18 +49,19 @@ svg text {
   font-family: var(--font);
 }
 
+/* The flat drawings (splash, help, start map) use the 3D town's colours: cream paving in a terracotta frame. */
 .ground {
-  fill: var(--sun);
+  fill: #fff1cf;
 }
 .grid-line {
-  stroke: var(--ink);
-  stroke-opacity: 0.16;
-  stroke-width: 2;
+  stroke: #cf8452;
+  stroke-opacity: 0.45;
+  stroke-width: 3;
 }
 .frame {
   fill: none;
-  stroke: var(--ink);
-  stroke-width: 6;
+  stroke: #cf8452;
+  stroke-width: 10;
 }
 
 .primary {

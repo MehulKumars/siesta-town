@@ -19,6 +19,17 @@
           <button type="button" class="text-btn" id="skip-btn" hidden>
             Skip
           </button>
+          <button type="button" class="icon-btn" id="towns-btn" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
           <button
             type="button"
             class="icon-btn"
@@ -78,7 +89,7 @@
         aria-label="Time of day"
       ></div>
       <div class="board-wrap">
-        <svg id="board" role="img" aria-label="Town board"></svg>
+        <canvas id="board" role="img" aria-label="The town"></canvas>
         <div class="toast" id="toast" role="status" aria-live="polite"></div>
       </div>
       <div class="status">
@@ -119,6 +130,13 @@
       role="dialog"
       aria-modal="true"
       aria-label="Result"
+    ></div>
+    <div
+      class="sheet towns"
+      id="towns-sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-label="More towns"
     ></div>
     <div
       class="sheet help"

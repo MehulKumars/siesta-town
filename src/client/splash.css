@@ -88,3 +88,8 @@
 .preview .ring {
   display: none;
 }
+
+/* The splash wears the morning sky of the town inside. */
+body {
+  background: linear-gradient(#ffcbb9, #fff1de 60%);
+}
